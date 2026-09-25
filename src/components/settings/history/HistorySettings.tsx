@@ -70,7 +70,9 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
   </Button>
 );
 
-export const HistorySettings: React.FC = () => {
+export const HistorySettings: React.FC<{ embedded?: boolean }> = ({
+  embedded = false,
+}) => {
   const { t } = useTranslation();
   const osType = useOsType();
   const { settings } = useSettings();
@@ -272,7 +274,7 @@ export const HistorySettings: React.FC = () => {
   } else {
     content = (
       <>
-        <div className="divide-y divide-mid-gray/20">
+        <div className="divide-y divide-border">
           {entries.map((entry) => (
             <HistoryEntryComponent
               key={entry.id}
@@ -293,6 +295,10 @@ export const HistorySettings: React.FC = () => {
     );
   }
 
+  if (embedded) {
+    return <div className="wsm-card overflow-visible">{content}</div>;
+  }
+
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <div className="space-y-2">
@@ -307,9 +313,7 @@ export const HistorySettings: React.FC = () => {
             label={t("settings.history.openFolder")}
           />
         </div>
-        <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-          {content}
-        </div>
+        <div className="wsm-card overflow-visible">{content}</div>
       </div>
     </div>
   );

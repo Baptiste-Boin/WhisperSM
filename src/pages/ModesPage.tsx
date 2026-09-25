@@ -1,38 +1,37 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Cpu, Globe, Plus, Sparkles, Trash2 } from "lucide-react";
 import { commands, type PostProcessAction } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
 import { formatKeyCombination } from "@/lib/utils/keyboard";
+import { navigateTo } from "@/lib/navigation";
 import {
   ACTION_ICON_NAMES,
   DEFAULT_ACTION_ICON,
   getActionIcon,
 } from "@/lib/constants/actionIcons";
 import {
+  Badge,
+  Button,
   Dialog,
   Dropdown,
+  Input,
+  Kbd,
+  KeyCombo,
+  PageHeader,
   SettingsGroup,
   Textarea,
   ToggleSwitch,
 } from "@/components/ui";
-import { Input } from "../../ui/Input";
-import { Button } from "../../ui/Button";
-import { ShortcutInput } from "../ShortcutInput";
+import { ShortcutInput } from "@/components/settings/ShortcutInput";
 
-const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="inline-flex items-center px-1.5 h-5 rounded-md border border-mid-gray/30 bg-mid-gray/10 text-[11px] font-semibold text-text/70 leading-none">
-    {children}
-  </span>
-);
+const LOCAL_PROVIDER_ID = "local";
 
-interface IconPickerProps {
+const IconPicker: React.FC<{
   value: string;
   onChange: (icon: string) => void;
-}
-
-const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => (
+}> = ({ value, onChange }) => (
   <div className="grid grid-cols-10 gap-1.5">
     {ACTION_ICON_NAMES.map((name) => {
       const Icon = getActionIcon(name);
@@ -44,8 +43,8 @@ const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => (
           onClick={() => onChange(name)}
           className={`flex items-center justify-center aspect-square rounded-lg border transition-colors ${
             isActive
-              ? "border-logo-primary bg-logo-primary/20 text-logo-primary"
-              : "border-mid-gray/20 hover:border-logo-primary/50 hover:bg-mid-gray/10 text-text/60"
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border hover:border-accent/50 hover:bg-surface-2 text-text-muted"
           }`}
         >
           <Icon className="w-4 h-4" />
@@ -55,14 +54,14 @@ const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => (
   </div>
 );
 
-interface ActionDialogProps {
+interface ModeDialogProps {
   open: boolean;
-  action: PostProcessAction | null; // null = creating
+  action: PostProcessAction | null;
   onClose: () => void;
   onSaved: (id: string) => void;
 }
 
-const ActionDialog: React.FC<ActionDialogProps> = ({
+const ModeDialog: React.FC<ModeDialogProps> = ({
   open,
   action,
   onClose,
@@ -72,6 +71,7 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
   const { settings, refreshSettings } = useSettings();
 
   const savedModels = settings?.llm_models || [];
+  const providers = settings?.post_process_providers || [];
   const actions = settings?.post_process_actions || [];
 
   const [name, setName] = useState(action?.name ?? "");
@@ -86,9 +86,22 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const providerLabel = useCallback(
+    (id: string) => providers.find((p) => p.id === id)?.label ?? id,
+    [providers],
+  );
+
   const modelOptions = useMemo(
-    () => savedModels.map((m) => ({ value: m.id, label: m.label })),
-    [savedModels],
+    () =>
+      savedModels.map((m) => ({
+        value: m.id,
+        label: m.label,
+        hint:
+          m.provider_id === LOCAL_PROVIDER_ID
+            ? t("modes.dialog.onDevice")
+            : providerLabel(m.provider_id),
+      })),
+    [savedModels, providerLabel, t],
   );
 
   const triggerKeyOptions = useMemo(() => {
@@ -120,35 +133,27 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
     setIsSaving(true);
     setError(null);
     try {
-      if (action) {
-        const result = await commands.updatePostProcessAction(
-          action.id,
-          name.trim(),
-          prompt.trim(),
-          llmModelId,
-          icon,
-          triggerKey,
-        );
-        if (result.status === "ok") {
-          await refreshSettings();
-          onSaved(action.id);
-        } else {
-          setError(String(result.error));
-        }
+      const result = action
+        ? await commands.updatePostProcessAction(
+            action.id,
+            name.trim(),
+            prompt.trim(),
+            llmModelId,
+            icon,
+            triggerKey,
+          )
+        : await commands.addPostProcessAction(
+            name.trim(),
+            prompt.trim(),
+            llmModelId,
+            icon,
+            triggerKey,
+          );
+      if (result.status === "ok") {
+        await refreshSettings();
+        onSaved(action ? action.id : (result.data?.id ?? ""));
       } else {
-        const result = await commands.addPostProcessAction(
-          name.trim(),
-          prompt.trim(),
-          llmModelId,
-          icon,
-          triggerKey,
-        );
-        if (result.status === "ok") {
-          await refreshSettings();
-          onSaved(result.data.id);
-        } else {
-          setError(String(result.error));
-        }
+        setError(String(result.error));
       }
     } finally {
       setIsSaving(false);
@@ -181,7 +186,7 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
           variant="danger-ghost"
           size="md"
           onClick={handleDelete}
-          className="mr-auto flex items-center gap-1.5"
+          className="me-auto"
         >
           <Trash2 className="w-4 h-4" />
           {t("common.delete")}
@@ -205,75 +210,27 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        action
-          ? t("settings.postProcessing.actions.editTitle")
-          : t("settings.postProcessing.actions.newTitle")
-      }
-      description={t("settings.postProcessing.actions.dialogSubtitle")}
+      title={action ? t("modes.dialog.editTitle") : t("modes.dialog.newTitle")}
+      description={t("modes.dialog.subtitle")}
       footer={footer}
     >
       <div className="space-y-5">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text/80">
-            {t("settings.postProcessing.actions.name")}
-          </label>
-          <Input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t("settings.postProcessing.actions.namePlaceholder")}
-            variant="compact"
-            className="w-full"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text/80">
-            {t("settings.postProcessing.actions.icon")}
-          </label>
-          <IconPicker value={icon} onChange={setIcon} />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text/80">
-            {t("settings.postProcessing.actions.prompt")}
-          </label>
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={t("settings.postProcessing.actions.promptPlaceholder")}
-            className="w-full block min-h-[120px] font-normal"
-          />
-          <p className="text-xs text-text/45">
-            {t("settings.postProcessing.actions.promptHint")}
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text/80">
-            {t("settings.postProcessing.actions.model")}
-          </label>
-          {modelOptions.length > 0 ? (
-            <Dropdown
-              selectedValue={llmModelId}
-              options={modelOptions}
-              onSelect={(value) => setLlmModelId(value)}
-              placeholder={t("settings.postProcessing.actions.modelPlaceholder")}
+        <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              {t("settings.postProcessing.actions.name")}
+            </label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("settings.postProcessing.actions.namePlaceholder")}
+              variant="compact"
               className="w-full"
             />
-          ) : (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-              <p className="text-xs text-amber-500">
-                {t("settings.postProcessing.actions.noModels")}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+          </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text/80">
+            <label className="text-sm font-medium">
               {t("settings.postProcessing.actions.triggerKey")}
             </label>
             <Dropdown
@@ -283,27 +240,82 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
                 setTriggerKey(value === "none" ? null : Number(value))
               }
               placeholder={t("settings.postProcessing.actions.noKey")}
-              className="w-full"
+              className="w-[200px]"
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text/80">
-              {t("settings.postProcessing.actions.shortcut")}
-            </label>
-            {action ? (
-              <ShortcutInput shortcutId={`ppa_${action.id}`} bare />
-            ) : (
-              <p className="text-xs text-text/45 pt-1.5">
-                {t("settings.postProcessing.actions.shortcutAfterSave")}
-              </p>
-            )}
           </div>
         </div>
 
+        <div className="space-y-2">
+          <label className="text-sm font-medium">
+            {t("settings.postProcessing.actions.icon")}
+          </label>
+          <IconPicker value={icon} onChange={setIcon} />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">
+            {t("settings.postProcessing.actions.prompt")}
+          </label>
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={t("settings.postProcessing.actions.promptPlaceholder")}
+            className="w-full block min-h-[140px] font-normal"
+          />
+          <p className="text-xs text-text-muted">
+            {t("settings.postProcessing.actions.promptHint")}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">
+            {t("settings.postProcessing.actions.model")}
+          </label>
+          {modelOptions.length > 0 ? (
+            <Dropdown
+              selectedValue={llmModelId}
+              options={modelOptions}
+              onSelect={(value) => setLlmModelId(value)}
+              placeholder={t(
+                "settings.postProcessing.actions.modelPlaceholder",
+              )}
+              className="w-full"
+            />
+          ) : (
+            <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 flex items-center justify-between gap-3">
+              <p className="text-xs text-warning">
+                {t("modes.dialog.noModels")}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  navigateTo("models");
+                }}
+              >
+                {t("modes.dialog.addModel")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">
+            {t("settings.postProcessing.actions.shortcut")}
+          </label>
+          {action ? (
+            <ShortcutInput shortcutId={`ppa_${action.id}`} bare />
+          ) : (
+            <p className="text-xs text-text-muted pt-1">
+              {t("settings.postProcessing.actions.shortcutAfterSave")}
+            </p>
+          )}
+        </div>
+
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2">
-            <p className="text-xs text-red-500">{error}</p>
+          <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2">
+            <p className="text-xs text-danger">{error}</p>
           </div>
         )}
       </div>
@@ -311,16 +323,20 @@ const ActionDialog: React.FC<ActionDialogProps> = ({
   );
 };
 
-interface ActionCardProps {
+interface ModeCardProps {
   action: PostProcessAction;
+  isDefault: boolean;
   modelLabel?: string;
+  isLocal: boolean;
   shortcut?: string;
   onClick: () => void;
 }
 
-const ActionCard: React.FC<ActionCardProps> = ({
+const ModeCard: React.FC<ModeCardProps> = ({
   action,
+  isDefault,
   modelLabel,
+  isLocal,
   shortcut,
   onClick,
 }) => {
@@ -331,27 +347,42 @@ const ActionCard: React.FC<ActionCardProps> = ({
     <button
       type="button"
       onClick={onClick}
-      className="group w-full flex items-center gap-3.5 p-3 rounded-xl border border-mid-gray/15 bg-mid-gray/[0.03] hover:border-logo-primary/40 hover:bg-logo-primary/[0.05] transition-colors text-start"
+      className="group wsm-card w-full flex items-center gap-3.5 px-4 py-3 hover:border-accent/50 transition-colors text-start"
     >
-      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-logo-primary/15 text-logo-primary shrink-0">
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl wsm-gradient text-white shrink-0 shadow-sm">
         <Icon className="w-5 h-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold truncate">{action.name}</p>
-        <p className="text-xs text-text/50 truncate mt-0.5">
-          {modelLabel ?? t("settings.postProcessing.actions.noModelShort")}
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold truncate">{action.name}</p>
+          {isDefault && (
+            <Badge variant="primary">{t("modes.card.default")}</Badge>
+          )}
+        </div>
+        <p className="text-xs text-text-muted truncate mt-0.5 flex items-center gap-1.5">
+          {modelLabel ? (
+            <>
+              {isLocal ? (
+                <Cpu className="w-3 h-3 text-success" />
+              ) : (
+                <Globe className="w-3 h-3" />
+              )}
+              <span className="truncate">{modelLabel}</span>
+            </>
+          ) : (
+            <span className="text-warning">{t("modes.card.noModel")}</span>
+          )}
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         {action.trigger_key != null && <Kbd>{action.trigger_key}</Kbd>}
-        {shortcut && <Kbd>{shortcut}</Kbd>}
+        {shortcut && <KeyCombo combination={shortcut} />}
       </div>
-      <ChevronRight className="w-4 h-4 text-text/25 group-hover:text-logo-primary shrink-0 transition-colors" />
     </button>
   );
 };
 
-export const PostProcessingSettings: React.FC = () => {
+export const ModesPage: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateSetting, isUpdating } = useSettings();
   const osType = useOsType();
@@ -361,7 +392,6 @@ export const PostProcessingSettings: React.FC = () => {
   const bindings = settings?.bindings || {};
   const defaultShortcutEnabled = settings?.post_process_enabled ?? false;
 
-  // editingId: null = closed, "new" = creating, else action id being edited
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const editingAction =
@@ -370,8 +400,8 @@ export const PostProcessingSettings: React.FC = () => {
       : null;
   const dialogOpen = editingId !== null;
 
-  const modelLabel = (id: string | null | undefined) =>
-    models.find((m) => m.id === id)?.label;
+  const modelFor = (id: string | null | undefined) =>
+    models.find((m) => m.id === id);
 
   const actionShortcut = (id: string) => {
     const raw = bindings[`ppa_${id}`]?.current_binding;
@@ -379,66 +409,65 @@ export const PostProcessingSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-8 py-1">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold">
-            {t("settings.postProcessing.title")}
-          </h1>
-          <p className="text-sm text-text/55 mt-1.5 leading-relaxed max-w-xl">
-            {t("settings.postProcessing.description")}
-          </p>
-        </div>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => setEditingId("new")}
-          className="flex items-center gap-1.5 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          {t("settings.postProcessing.actions.newAction")}
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title={t("modes.title")}
+        description={t("modes.description")}
+        actions={
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setEditingId("new")}
+          >
+            <Plus className="w-4 h-4" />
+            {t("modes.newMode")}
+          </Button>
+        }
+      />
 
-      {/* Actions list */}
       {actions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-14 px-6 rounded-2xl border border-dashed border-mid-gray/25">
-          <div className="w-12 h-12 rounded-xl bg-logo-primary/15 text-logo-primary flex items-center justify-center mb-3">
+        <div className="wsm-card flex flex-col items-center justify-center text-center py-14 px-6 border-dashed">
+          <div className="w-12 h-12 rounded-2xl wsm-gradient text-white flex items-center justify-center mb-3 shadow">
             <Sparkles className="w-6 h-6" />
           </div>
-          <p className="text-sm font-medium">
-            {t("settings.postProcessing.actions.emptyTitle")}
-          </p>
-          <p className="text-xs text-text/50 mt-1 max-w-xs">
-            {t("settings.postProcessing.actions.empty")}
+          <p className="text-sm font-medium">{t("modes.emptyTitle")}</p>
+          <p className="text-xs text-text-muted mt-1 max-w-xs">
+            {t("modes.empty")}
           </p>
           <Button
             variant="primary"
             size="md"
             onClick={() => setEditingId("new")}
-            className="mt-4 flex items-center gap-1.5"
+            className="mt-4"
           >
             <Plus className="w-4 h-4" />
-            {t("settings.postProcessing.actions.newAction")}
+            {t("modes.newMode")}
           </Button>
         </div>
       ) : (
         <div className="space-y-2">
-          {actions.map((action) => (
-            <ActionCard
-              key={action.id}
-              action={action}
-              modelLabel={modelLabel(action.llm_model_id)}
-              shortcut={actionShortcut(action.id)}
-              onClick={() => setEditingId(action.id)}
-            />
-          ))}
+          {actions.map((action, index) => {
+            const model = modelFor(action.llm_model_id);
+            return (
+              <ModeCard
+                key={action.id}
+                action={action}
+                isDefault={index === 0}
+                modelLabel={model?.label}
+                isLocal={model?.provider_id === LOCAL_PROVIDER_ID}
+                shortcut={actionShortcut(action.id)}
+                onClick={() => setEditingId(action.id)}
+              />
+            );
+          })}
+          <p className="text-xs text-text-muted px-1 pt-1">{t("modes.hint")}</p>
         </div>
       )}
 
-      {/* Default post-processing shortcut */}
-      <SettingsGroup title={t("settings.postProcessing.defaultShortcut.title")}>
+      <SettingsGroup
+        title={t("modes.aiShortcut.title")}
+        description={t("modes.aiShortcut.description")}
+      >
         <ToggleSwitch
           checked={defaultShortcutEnabled}
           onChange={(checked) => updateSetting("post_process_enabled", checked)}
@@ -458,7 +487,7 @@ export const PostProcessingSettings: React.FC = () => {
       </SettingsGroup>
 
       {dialogOpen && (
-        <ActionDialog
+        <ModeDialog
           key={editingId ?? "new"}
           open={dialogOpen}
           action={editingAction}

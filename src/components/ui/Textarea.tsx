@@ -1,6 +1,7 @@
 import React from "react";
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   variant?: "default" | "compact";
 }
 
@@ -10,11 +11,11 @@ export const Textarea: React.FC<TextareaProps> = ({
   ...props
 }) => {
   const baseClasses =
-    "px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded-md text-start transition-[background-color,border-color] duration-150 hover:bg-logo-primary/10 hover:border-logo-primary focus:outline-none focus:bg-logo-primary/10 focus:border-logo-primary resize-y";
+    "text-sm bg-surface border border-border-strong rounded-lg text-start text-text placeholder:text-text-muted/70 transition-[background-color,border-color,box-shadow] duration-150 hover:border-accent/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 resize-y leading-relaxed";
 
   const variantClasses = {
     default: "px-3 py-2 min-h-[100px]",
-    compact: "px-2 py-1 min-h-[80px]",
+    compact: "px-2.5 py-1.5 min-h-[80px]",
   };
 
   return (

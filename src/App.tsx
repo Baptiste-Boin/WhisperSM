@@ -8,41 +8,51 @@ import { checkMicrophonePermission } from "tauri-plugin-macos-permissions-api";
 import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
-import Footer from "./components/footer";
-import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
-import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import { OnboardingWizard } from "./components/onboarding";
+import {
+  Sidebar,
+  SidebarSection,
+  SECTIONS_CONFIG,
+  LEGACY_SECTION_ALIASES,
+} from "./components/Sidebar";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
+import { useLocalLlmStore } from "./stores/localLlmStore";
 import { commands } from "@/bindings";
 import { checkMacOSAccessibilityReady } from "@/lib/permissions";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 
-type OnboardingStep = "accessibility" | "model" | "done";
+type OnboardingMode = "full" | "permissions" | "done";
 
-const renderSettingsContent = (section: SidebarSection) => {
+interface PostProcessErrorEvent {
+  provider: string;
+  model: string;
+  error: string;
+}
+
+const renderSection = (section: SidebarSection) => {
   const ActiveComponent =
-    SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.general.component;
+    SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.home.component;
   return (
     <Suspense fallback={null}>
-      <ActiveComponent />
+      <div key={section} className="wsm-fade-in">
+        <ActiveComponent />
+      </div>
     </Suspense>
   );
 };
 
-const isSidebarSection = (section: string): section is SidebarSection => {
-  return section in SECTIONS_CONFIG;
+const resolveSection = (section: string): SidebarSection | null => {
+  if (section in SECTIONS_CONFIG) return section as SidebarSection;
+  return LEGACY_SECTION_ALIASES[section] ?? null;
 };
 
 function App() {
   const { t, i18n } = useTranslation();
-  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(
+  const [onboardingMode, setOnboardingMode] = useState<OnboardingMode | null>(
     null,
   );
-  // Track if this is a returning user who just needs to grant permissions
-  // (vs a new user who needs full onboarding including model selection)
-  const [isReturningUser, setIsReturningUser] = useState(false);
-  const [currentSection, setCurrentSection] =
-    useState<SidebarSection>("general");
+  const [currentSection, setCurrentSection] = useState<SidebarSection>("home");
   const { settings, updateSetting } = useSettings();
   const direction = getLanguageDirection(i18n.language);
   const refreshAudioDevices = useSettingsStore(
@@ -51,20 +61,24 @@ function App() {
   const refreshOutputDevices = useSettingsStore(
     (state) => state.refreshOutputDevices,
   );
+  const initializeLocalLlm = useLocalLlmStore((state) => state.initialize);
   const hasCompletedPostOnboardingInit = useRef(false);
 
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
 
-  // Initialize RTL direction when language changes
   useEffect(() => {
     initializeRTL(i18n.language);
   }, [i18n.language]);
 
+  useEffect(() => {
+    initializeLocalLlm();
+  }, [initializeLocalLlm]);
+
   // Initialize Enigo, shortcuts, and refresh audio devices when main app loads
   useEffect(() => {
-    if (onboardingStep === "done" && !hasCompletedPostOnboardingInit.current) {
+    if (onboardingMode === "done" && !hasCompletedPostOnboardingInit.current) {
       hasCompletedPostOnboardingInit.current = true;
       Promise.all([
         commands.initializeEnigo(),
@@ -75,51 +89,47 @@ function App() {
       refreshAudioDevices();
       refreshOutputDevices();
     }
-  }, [onboardingStep, refreshAudioDevices, refreshOutputDevices]);
+  }, [onboardingMode, refreshAudioDevices, refreshOutputDevices]);
 
-  // Handle keyboard shortcuts for debug mode toggle
+  // Debug mode toggle: Ctrl/Cmd + Shift + D
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Ctrl+Shift+D (Windows/Linux) or Cmd+Shift+D (macOS)
       const isDebugShortcut =
         event.shiftKey &&
         event.key.toLowerCase() === "d" &&
         (event.ctrlKey || event.metaKey);
-
       if (isDebugShortcut) {
         event.preventDefault();
-        const currentDebugMode = settings?.debug_mode ?? false;
-        updateSetting("debug_mode", !currentDebugMode);
+        updateSetting("debug_mode", !(settings?.debug_mode ?? false));
       }
     };
-
-    // Add event listener when component mounts
     document.addEventListener("keydown", handleKeyDown);
-
-    // Cleanup event listener when component unmounts
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [settings?.debug_mode, updateSetting]);
 
-  // Let backend shortcuts open a specific settings section.
+  // Let backend shortcuts (and pages) open a specific section.
   useEffect(() => {
     const unlisten = listen<string>("navigate-to-section", (event) => {
-      if (isSidebarSection(event.payload)) {
-        setCurrentSection(event.payload);
-      }
+      const section = resolveSection(event.payload);
+      if (section) setCurrentSection(section);
     });
-
+    const handleLocalNavigate = (event: Event) => {
+      const section = resolveSection(
+        (event as CustomEvent<string>).detail ?? "",
+      );
+      if (section) setCurrentSection(section);
+    };
+    window.addEventListener("wsm:navigate", handleLocalNavigate);
     return () => {
       unlisten.then((fn) => fn());
+      window.removeEventListener("wsm:navigate", handleLocalNavigate);
     };
   }, []);
 
-  // Listen for recording errors from the backend and show a toast
+  // Recording errors
   useEffect(() => {
     const unlisten = listen<RecordingErrorEvent>("recording-error", (event) => {
       const { error_type, detail } = event.payload;
-
       if (error_type === "microphone_permission_denied") {
         const currentPlatform = platform();
         const platformKey = `errors.micPermissionDenied.${currentPlatform}`;
@@ -142,7 +152,7 @@ function App() {
     };
   }, [t]);
 
-  // Listen for model loading failures and show a toast
+  // Speech model load failures
   useEffect(() => {
     const unlisten = listen<ModelStateEvent>("model-state-changed", (event) => {
       if (event.payload.event_type === "loading_failed") {
@@ -151,12 +161,25 @@ function App() {
             model:
               event.payload.model_name || t("errors.modelLoadFailedUnknown"),
           }),
-          {
-            description: event.payload.error,
-          },
+          { description: event.payload.error },
         );
       }
     });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // Post-processing failures (cloud or on-device)
+  useEffect(() => {
+    const unlisten = listen<PostProcessErrorEvent>(
+      "post-process-error",
+      (event) => {
+        toast.error(t("errors.postProcessFailed"), {
+          description: event.payload.error,
+        });
+      },
+    );
     return () => {
       unlisten.then((fn) => fn());
     };
@@ -175,15 +198,12 @@ function App() {
       const appIdentifier = await getIdentifier();
       const isDevFlavor = appIdentifier.endsWith(".dev");
 
-      // Check if they have any models available
       const result = await commands.hasAnyModelsAvailable();
       const hasModels = result.status === "ok" && result.data;
       const currentPlatform = platform();
 
       if (hasModels) {
-        // Returning user - check if they need to grant permissions first
-        setIsReturningUser(true);
-
+        // Returning user: only re-run the permissions step when needed.
         if (currentPlatform === "macos") {
           try {
             const [hasAccessibility, hasMicrophone] = await Promise.all([
@@ -192,12 +212,11 @@ function App() {
             ]);
             if (!hasAccessibility || !hasMicrophone) {
               await revealMainWindowForPermissions();
-              setOnboardingStep("accessibility");
+              setOnboardingMode("permissions");
               return;
             }
           } catch (e) {
             console.warn("Failed to check macOS permissions:", e);
-            // If we can't check, proceed to main app and let them fix it there
           }
         }
 
@@ -210,86 +229,71 @@ function App() {
               microphoneStatus.overall_access === "denied"
             ) {
               await revealMainWindowForPermissions();
-              setOnboardingStep("accessibility");
+              setOnboardingMode("permissions");
               return;
             }
           } catch (e) {
             console.warn("Failed to check Windows microphone permissions:", e);
-            // If we can't check, proceed to main app and let them fix it there
           }
         }
 
-        setOnboardingStep("done");
+        setOnboardingMode("done");
       } else {
-        // New user - dev flavor skips permissions (can't grant to debug binary)
-        setIsReturningUser(false);
-        setOnboardingStep(isDevFlavor ? "model" : "accessibility");
+        // New user: dev flavor cannot be granted permissions, skip that step.
+        setOnboardingMode(isDevFlavor ? "full" : "full");
       }
     } catch (error) {
       console.error("Failed to check onboarding status:", error);
-      setOnboardingStep("accessibility");
+      setOnboardingMode("full");
     }
   };
 
-  const handleAccessibilityComplete = () => {
-    // Returning users already have models, skip to main app
-    // New users need to select a model
-    setOnboardingStep(isReturningUser ? "done" : "model");
-  };
-
-  const handleModelSelected = () => {
-    // Transition to main app - user has started a download
-    setOnboardingStep("done");
-  };
-
-  // Still checking onboarding status
-  if (onboardingStep === null) {
+  if (onboardingMode === null) {
     return null;
   }
 
-  if (onboardingStep === "accessibility") {
-    return <AccessibilityOnboarding onComplete={handleAccessibilityComplete} />;
-  }
-
-  if (onboardingStep === "model") {
-    return <Onboarding onModelSelected={handleModelSelected} />;
+  if (onboardingMode !== "done") {
+    return (
+      <>
+        <Toaster theme="system" position="bottom-center" richColors />
+        <OnboardingWizard
+          mode={onboardingMode}
+          onComplete={() => setOnboardingMode("done")}
+        />
+      </>
+    );
   }
 
   return (
     <div
       dir={direction}
-      className="h-screen flex flex-col select-none cursor-default"
+      className="h-screen flex select-none cursor-default bg-background"
     >
       <Toaster
         theme="system"
+        position="bottom-center"
         toastOptions={{
           unstyled: true,
           classNames: {
             toast:
-              "bg-background border border-mid-gray/20 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 text-sm",
+              "wsm-card px-4 py-3 flex items-center gap-3 text-sm min-w-[320px]",
             title: "font-medium",
-            description: "text-mid-gray",
+            description: "text-text-muted",
           },
         }}
       />
-      {/* Main content area that takes remaining space */}
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          activeSection={currentSection}
-          onSectionChange={setCurrentSection}
-        />
-        {/* Scrollable content area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center p-4 gap-4">
-              <AccessibilityPermissions />
-              {renderSettingsContent(currentSection)}
-            </div>
+      <Sidebar
+        activeSection={currentSection}
+        onSectionChange={setCurrentSection}
+      />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-[820px] mx-auto px-8 py-8 flex flex-col gap-6">
+            <AccessibilityPermissions />
+            {renderSection(currentSection)}
           </div>
         </div>
-      </div>
-      {/* Fixed footer at bottom */}
-      <Footer />
+      </main>
     </div>
   );
 }
