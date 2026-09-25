@@ -2,6 +2,7 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error};
+use crate::local_llm::{LocalLlmManager, LOCAL_LLM_PROVIDER_ID};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::transcription::TranscriptionManager;
@@ -55,6 +56,31 @@ struct TranscribeAction {
     post_process: bool,
 }
 
+/// System prompt shared by every post-processing backend (cloud or local).
+pub(crate) const LOCAL_SYSTEM_PROMPT: &str = "You are a text processing assistant. Output ONLY the final processed text. Do not add any explanation, commentary, preamble, or formatting such as markdown code blocks. Just output the raw result text, nothing else.";
+
+#[derive(Clone, serde::Serialize)]
+struct PostProcessErrorEvent {
+    provider: String,
+    model: String,
+    error: String,
+}
+
+fn report_post_process_error(app: &AppHandle, provider: &str, model: &str, error: String) {
+    error!(
+        "Post-processing failed for provider '{}' (model '{}'): {}",
+        provider, model, error
+    );
+    let _ = app.emit(
+        "post-process-error",
+        PostProcessErrorEvent {
+            provider: provider.to_string(),
+            model: model.to_string(),
+            error,
+        },
+    );
+}
+
 /// Strip invisible Unicode characters that some LLMs may insert
 fn strip_invisible_chars(s: &str) -> String {
     s.replace(['\u{200B}', '\u{200C}', '\u{200D}', '\u{FEFF}'], "")
@@ -64,6 +90,7 @@ fn strip_invisible_chars(s: &str) -> String {
 /// language model (falling back to the first saved model, then to the legacy
 /// active provider configuration).
 pub(crate) async fn run_post_process_action(
+    app: &AppHandle,
     settings: &AppSettings,
     text: &str,
     action: &PostProcessAction,
@@ -77,6 +104,7 @@ pub(crate) async fn run_post_process_action(
     match model {
         Some(model) => {
             process_action(
+                app,
                 settings,
                 text,
                 &action.prompt,
@@ -90,12 +118,13 @@ pub(crate) async fn run_post_process_action(
                 "Action '{}' has no saved language model; using active provider configuration",
                 action.id
             );
-            process_action(settings, text, &action.prompt, None, None).await
+            process_action(app, settings, text, &action.prompt, None, None).await
         }
     }
 }
 
 async fn process_action(
+    app: &AppHandle,
     settings: &AppSettings,
     transcription: &str,
     prompt: &str,
@@ -169,7 +198,7 @@ async fn process_action(
                     None
                 }
                 Err(err) => {
-                    error!("Apple Intelligence action processing failed: {}", err);
+                    report_post_process_error(app, &provider.id, &model, err);
                     None
                 }
             };
@@ -180,6 +209,59 @@ async fn process_action(
             debug!("Apple Intelligence provider selected on unsupported platform");
             return None;
         }
+    }
+
+    // Handle on-device models through the bundled inference engine
+    if provider.id == LOCAL_LLM_PROVIDER_ID {
+        if model.trim().is_empty() {
+            debug!("Local LLM processing skipped: no model selected");
+            return None;
+        }
+        let manager = match app.try_state::<Arc<LocalLlmManager>>() {
+            Some(manager) => Arc::clone(&manager),
+            None => {
+                report_post_process_error(
+                    app,
+                    &provider.id,
+                    &model,
+                    "Local model manager is not initialized".to_string(),
+                );
+                return None;
+            }
+        };
+        let model_id = model.clone();
+        let user_content = full_prompt.clone();
+        let task = tauri::async_runtime::spawn_blocking(move || {
+            manager.generate(&model_id, LOCAL_SYSTEM_PROMPT, &user_content)
+        });
+        return match task.await {
+            Ok(Ok(result)) if !result.trim().is_empty() => {
+                let result = strip_invisible_chars(&result);
+                debug!(
+                    "Local LLM processing succeeded with '{}'. Output length: {} chars",
+                    model,
+                    result.len()
+                );
+                Some(result)
+            }
+            Ok(Ok(_)) => {
+                debug!("Local LLM returned an empty result");
+                None
+            }
+            Ok(Err(e)) => {
+                report_post_process_error(app, &provider.id, &model, format!("{:#}", e));
+                None
+            }
+            Err(e) => {
+                report_post_process_error(
+                    app,
+                    &provider.id,
+                    &model,
+                    format!("Local model task failed: {}", e),
+                );
+                None
+            }
+        };
     }
 
     if model.trim().is_empty() {
@@ -196,7 +278,7 @@ async fn process_action(
         .cloned()
         .unwrap_or_default();
 
-    let system_prompt = "You are a text processing assistant. Output ONLY the final processed text. Do not add any explanation, commentary, preamble, or formatting such as markdown code blocks. Just output the raw result text, nothing else.".to_string();
+    let system_prompt = LOCAL_SYSTEM_PROMPT.to_string();
 
     match crate::llm_client::send_chat_completion_with_schema(
         &provider,
@@ -222,10 +304,7 @@ async fn process_action(
             None
         }
         Err(e) => {
-            error!(
-                "Action processing failed for provider '{}': {}",
-                provider.id, e
-            );
+            report_post_process_error(app, &provider.id, &model, e);
             None
         }
     }
@@ -298,7 +377,7 @@ pub(crate) async fn process_transcription_output(
     if post_process {
         if let Some(action) = settings.default_post_process_action().cloned() {
             if let Some(processed_text) =
-                run_post_process_action(&settings, &final_text, &action).await
+                run_post_process_action(app, &settings, &final_text, &action).await
             {
                 post_processed_text = Some(processed_text.clone());
                 final_text = processed_text;
@@ -473,7 +552,7 @@ impl ShortcutAction for TranscribeAction {
                 } else {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
-                    let file_name = format!("handy-{}.wav", chrono::Utc::now().timestamp());
+                    let file_name = format!("whispersm-{}.wav", chrono::Utc::now().timestamp());
                     let wav_path = hm.recordings_dir().join(&file_name);
                     let wav_path_for_verify = wav_path.clone();
                     let samples_for_wav = samples.clone();
@@ -540,8 +619,13 @@ impl ShortcutAction for TranscribeAction {
                                 show_processing_overlay(&ah);
                                 let base =
                                     process_transcription_output(&ah, &transcription, false).await;
-                                match run_post_process_action(&settings, &base.final_text, &action)
-                                    .await
+                                match run_post_process_action(
+                                    &ah,
+                                    &settings,
+                                    &base.final_text,
+                                    &action,
+                                )
+                                .await
                                 {
                                     Some(result) => ProcessedTranscription {
                                         final_text: result.clone(),

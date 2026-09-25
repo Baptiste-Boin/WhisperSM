@@ -37,6 +37,17 @@ static MIGRATIONS: &[M] = &[
     ),
 ];
 
+/// Aggregate numbers shown on the Home screen.
+#[derive(Clone, Debug, Serialize, Deserialize, Type)]
+pub struct HistoryStats {
+    pub total_entries: i64,
+    pub total_words: i64,
+    pub entries_today: i64,
+    pub words_today: i64,
+    pub post_processed_entries: i64,
+    pub last_timestamp: Option<i64>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
 pub struct PaginatedHistory {
     pub entries: Vec<HistoryEntry>,
@@ -546,6 +557,61 @@ impl HistoryManager {
     }
 
     /// Get the latest entry with non-empty transcription text.
+    /// Compute usage statistics (counts and rough word totals).
+    pub fn get_stats(&self) -> Result<HistoryStats> {
+        let conn = self.get_connection()?;
+        let start_of_day = Local::now()
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .and_then(|dt| dt.and_local_timezone(Local).single())
+            .map(|dt| dt.timestamp())
+            .unwrap_or(0);
+
+        let (total_entries, post_processed_entries, last_timestamp): (i64, i64, Option<i64>) = conn
+            .query_row(
+                "SELECT COUNT(*), SUM(CASE WHEN post_processed_text IS NOT NULL THEN 1 ELSE 0 END), MAX(timestamp) FROM transcription_history",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, Option<i64>>(1)?.unwrap_or(0),
+                        row.get::<_, Option<i64>>(2)?,
+                    ))
+                },
+            )?;
+        let entries_today: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM transcription_history WHERE timestamp >= ?1",
+            params![start_of_day],
+            |row| row.get(0),
+        )?;
+
+        let mut total_words: i64 = 0;
+        let mut words_today: i64 = 0;
+        let mut stmt = conn.prepare(
+            "SELECT timestamp, COALESCE(post_processed_text, transcription_text) FROM transcription_history",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (timestamp, text) = row?;
+            let words = text.split_whitespace().count() as i64;
+            total_words += words;
+            if timestamp >= start_of_day {
+                words_today += words;
+            }
+        }
+
+        Ok(HistoryStats {
+            total_entries,
+            total_words,
+            entries_today,
+            words_today,
+            post_processed_entries,
+            last_timestamp,
+        })
+    }
+
     pub fn get_latest_completed_entry(&self) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         Self::get_latest_completed_entry_with_conn(&conn)
@@ -727,7 +793,7 @@ mod tests {
                 post_process_requested
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                format!("handy-{}.wav", timestamp),
+                format!("whispersm-{}.wav", timestamp),
                 timestamp,
                 false,
                 format!("Recording {}", timestamp),

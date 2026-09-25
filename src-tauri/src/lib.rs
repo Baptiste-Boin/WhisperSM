@@ -9,6 +9,7 @@ mod commands;
 mod helpers;
 mod input;
 mod llm_client;
+mod local_llm;
 mod managers;
 mod overlay;
 pub mod portable;
@@ -26,6 +27,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 use tauri_specta::{collect_commands, collect_events, Builder};
 
 use env_filter::Builder as EnvFilterBuilder;
+use local_llm::LocalLlmManager;
 use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
@@ -155,6 +157,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
+    let local_llm_manager =
+        Arc::new(LocalLlmManager::new(app_handle).expect("Failed to initialize local LLM manager"));
+    local_llm_manager.start_idle_watcher();
 
     // Apply accelerator preferences before any model loads
     managers::transcription::apply_accelerator_settings(app_handle);
@@ -164,6 +169,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
+    app_handle.manage(local_llm_manager.clone());
 
     // Note: Shortcuts are NOT initialized here.
     // The frontend is responsible for calling the `initialize_shortcuts` command
@@ -312,16 +318,10 @@ fn show_main_window_command(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run(cli_args: CliArgs) {
-    // Detect portable mode before anything else
-    portable::init();
-
-    // Parse console logging directives from RUST_LOG, falling back to info-level logging
-    // when the variable is unset
-    let console_filter = build_console_filter();
-
-    let specta_builder = Builder::<tauri::Wry>::new()
+/// Build the tauri-specta command/event registry. Shared by [`run`] and the
+/// `export_bindings` test that regenerates `src/bindings.ts`.
+fn specta_builder() -> Builder<tauri::Wry> {
+    Builder::<tauri::Wry>::new()
         .commands(collect_commands![
             shortcut::change_binding,
             shortcut::reset_binding,
@@ -433,9 +433,47 @@ pub fn run(cli_args: CliArgs) {
             commands::history::apply_action_to_history_entry,
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,
+            commands::history::get_history_stats,
+            commands::local_llm::get_local_llm_models,
+            commands::local_llm::download_local_llm_model,
+            commands::local_llm::cancel_local_llm_download,
+            commands::local_llm::delete_local_llm_model,
+            commands::local_llm::get_local_llm_status,
+            commands::local_llm::unload_local_llm,
+            commands::local_llm::test_local_llm,
             helpers::clamshell::is_laptop,
         ])
-        .events(collect_events![managers::history::HistoryUpdatePayload,]);
+        .events(collect_events![managers::history::HistoryUpdatePayload,])
+}
+
+#[cfg(test)]
+mod bindings_export {
+    use specta_typescript::{BigIntExportBehavior, Typescript};
+
+    /// Regenerate `src/bindings.ts`. Run explicitly with:
+    /// `cargo test export_bindings -- --ignored`
+    #[test]
+    #[ignore]
+    fn export_bindings() {
+        super::specta_builder()
+            .export(
+                Typescript::default().bigint(BigIntExportBehavior::Number),
+                "../src/bindings.ts",
+            )
+            .expect("Failed to export typescript bindings");
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run(cli_args: CliArgs) {
+    // Detect portable mode before anything else
+    portable::init();
+
+    // Parse console logging directives from RUST_LOG, falling back to info-level logging
+    // when the variable is unset
+    let console_filter = build_console_filter();
+
+    let specta_builder = specta_builder();
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
     specta_builder
@@ -467,11 +505,11 @@ pub fn run(cli_args: CliArgs) {
                     Target::new(if let Some(data_dir) = portable::data_dir() {
                         TargetKind::Folder {
                             path: data_dir.join("logs"),
-                            file_name: Some("handy".into()),
+                            file_name: Some("whispersm".into()),
                         }
                     } else {
                         TargetKind::LogDir {
-                            file_name: Some("handy".into()),
+                            file_name: Some("whispersm".into()),
                         }
                     })
                     .filter(|metadata| {
@@ -523,12 +561,12 @@ pub fn run(cli_args: CliArgs) {
             // aborts the whole app (the setup hook runs inside
             // applicationDidFinishLaunching, where panics cannot unwind).
             if app.get_webview_window("main").is_none() {
-                // Dev builds (productName "ParlerDev") get a distinct window
-                // title so the window can't be mistaken for a production Parler.
+                // Dev builds (productName "WhisperSMDev") get a distinct window
+                // title so the window can't be mistaken for a production WhisperSM.
                 let window_title = if app.package_info().name.ends_with("Dev") {
-                    "Parler Dev"
+                    "WhisperSM Dev"
                 } else {
-                    "Parler"
+                    "WhisperSM"
                 };
                 let mut win_builder = tauri::WebviewWindowBuilder::new(
                     app,

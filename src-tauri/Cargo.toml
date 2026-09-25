@@ -1,11 +1,11 @@
 [package]
-name = "parler"
+name = "whispersm"
 version = "0.9.1"
-description = "Parler"
-authors = ["cjpais"]
+description = "WhisperSM - private, on-device speech to text with local AI post-processing"
+authors = ["Baptiste Boin"]
 edition = "2021"
 license = "MIT"
-default-run = "parler"
+default-run = "whispersm"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
@@ -16,7 +16,7 @@ incremental = true # Compile your binary in smaller steps.
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "parler_app_lib"
+name = "whispersm_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 # [[bin]]
@@ -78,6 +78,11 @@ specta = "=2.0.0-rc.22"
 specta-typescript = "0.0.9"
 tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
 tauri-plugin-dialog = "2.6"
+# On-device language models (GGUF) for local post-processing
+candle-core = "0.11"
+candle-nn = "0.11"
+candle-transformers = "0.11"
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
@@ -98,6 +103,11 @@ windows = { version = "0.61.3", features = [
   "Win32_UI_WindowsAndMessaging",
 ] }
 winreg = "0.55"
+
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+candle-core = { version = "0.11", features = ["metal"] }
+candle-nn = { version = "0.11", features = ["metal"] }
+candle-transformers = { version = "0.11", features = ["metal"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"

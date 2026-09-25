@@ -371,7 +371,7 @@ impl std::ops::DerefMut for SecretMap {
     }
 }
 
-/* still handy for composing the initial JSON in the store ------------- */
+/* Persisted application settings ------------------------------------- */
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
     pub bindings: HashMap<String, ShortcutBinding>,
@@ -645,6 +645,16 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         });
     }
 
+    // On-device models served by the bundled inference engine
+    providers.push(PostProcessProvider {
+        id: crate::local_llm::LOCAL_LLM_PROVIDER_ID.to_string(),
+        label: "On-device (WhisperSM)".to_string(),
+        base_url: "local://whispersm".to_string(),
+        allow_base_url_edit: false,
+        models_endpoint: None,
+        supports_structured_output: false,
+    });
+
     // Custom provider always comes last
     providers.push(PostProcessProvider {
         id: "custom".to_string(),
@@ -685,11 +695,39 @@ fn default_post_process_models() -> HashMap<String, String> {
 }
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
-    vec![LLMPrompt {
-        id: "default_improve_transcriptions".to_string(),
-        name: "Improve Transcriptions".to_string(),
-        prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
-    }]
+    vec![
+        LLMPrompt {
+            id: "default_improve_transcriptions".to_string(),
+            name: "Clean up".to_string(),
+            prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
+        },
+        LLMPrompt {
+            id: "default_email".to_string(),
+            name: "Email".to_string(),
+            prompt: "Rewrite this dictated text as a clear, polite email body. Keep the original language, meaning and tone. Fix grammar and punctuation, split into short paragraphs, add a greeting and a sign-off only if the text implies them. Do not invent facts.\n\nReturn only the email text.\n\nText:\n${output}".to_string(),
+        },
+        LLMPrompt {
+            id: "default_message".to_string(),
+            name: "Message".to_string(),
+            prompt: "Turn this dictated text into a short, natural chat message. Keep the original language and meaning, remove filler words and repetitions, keep it casual and concise. Do not add anything that was not said.\n\nReturn only the message.\n\nText:\n${output}".to_string(),
+        },
+        LLMPrompt {
+            id: "default_notes".to_string(),
+            name: "Notes".to_string(),
+            prompt: "Convert this dictated text into structured notes in the original language. Use short bullet points, group related ideas, keep names, numbers and dates exact. Do not add information that was not said.\n\nReturn only the notes.\n\nText:\n${output}".to_string(),
+        },
+    ]
+}
+
+/// Icon used for the built-in prompts when they are migrated into actions.
+fn default_icon_for_prompt(prompt_id: &str) -> String {
+    match prompt_id {
+        "default_email" => "mail",
+        "default_message" => "chat",
+        "default_notes" => "checklist",
+        _ => "sparkles",
+    }
+    .to_string()
 }
 
 fn default_long_audio_threshold_seconds() -> f32 {
@@ -798,7 +836,7 @@ fn ensure_post_process_actions(settings: &mut AppSettings) -> bool {
                 name: prompt.name.clone(),
                 prompt: prompt.prompt.clone(),
                 llm_model_id: default_model_id.clone(),
-                icon: default_action_icon(),
+                icon: default_icon_for_prompt(&prompt.id),
                 trigger_key,
             });
         }
