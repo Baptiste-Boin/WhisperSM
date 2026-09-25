@@ -34,8 +34,10 @@ export const KeyCombo: React.FC<{
   size?: "sm" | "md" | "lg";
   className?: string;
 }> = ({ combination, size = "sm", className = "" }) => {
+  // formatKeyCombination joins parts with " + "; splitting on the spaced
+  // separator keeps a literal "+" key intact.
   const parts = combination
-    .split("+")
+    .split(" + ")
     .map((p) => p.trim())
     .filter(Boolean);
   if (parts.length === 0) return null;

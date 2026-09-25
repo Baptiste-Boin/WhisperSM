@@ -49,7 +49,14 @@ pub async fn delete_local_llm_model(
     manager: State<'_, Arc<LocalLlmManager>>,
     model_id: String,
 ) -> Result<(), String> {
-    manager.delete(&model_id).map_err(|e| format!("{:#}", e))
+    // Deleting may wait for an in-flight generation to release the engine,
+    // so keep it off the async runtime threads.
+    let manager = Arc::clone(&manager);
+    tauri::async_runtime::spawn_blocking(move || {
+        manager.delete(&model_id).map_err(|e| format!("{:#}", e))
+    })
+    .await
+    .map_err(|e| format!("Local LLM task failed: {}", e))?
 }
 
 #[tauri::command]
@@ -63,8 +70,10 @@ pub async fn get_local_llm_status(
 #[tauri::command]
 #[specta::specta]
 pub async fn unload_local_llm(manager: State<'_, Arc<LocalLlmManager>>) -> Result<(), String> {
-    manager.unload();
-    Ok(())
+    let manager = Arc::clone(&manager);
+    tauri::async_runtime::spawn_blocking(move || manager.unload())
+        .await
+        .map_err(|e| format!("Local LLM task failed: {}", e))
 }
 
 /// Run a prompt through a downloaded local model. Used by the "Try it"
