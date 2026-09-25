@@ -15,7 +15,11 @@
     "postProcessing": "Post Process",
     "history": "History",
     "debug": "Debug",
-    "about": "About"
+    "about": "About",
+    "home": "Home",
+    "modes": "Modes",
+    "settings": "Settings",
+    "speechModel": "Speech model"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -92,11 +96,12 @@
     },
     "errors": {
       "loadModels": "Failed to load available models",
-      "downloadModel": "Failed to download model: {{error}}"
+      "downloadModel": "Failed to download model: {{error}}",
+      "selectModel": "Failed to activate the model. Please try again."
     },
     "permissions": {
       "title": "Permissions Required",
-      "description": "Parler needs a couple of permissions to work properly.",
+      "description": "WhisperSM needs a couple of permissions to work properly.",
       "microphone": {
         "title": "Microphone Access",
         "description": "Required to hear your voice for transcription."
@@ -114,6 +119,58 @@
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
       }
+    },
+    "steps": {
+      "permissions": "Step 1",
+      "speech": "Speech model",
+      "ai": "AI model"
+    },
+    "actions": {
+      "getStarted": "Get started",
+      "continue": "Continue",
+      "skip": "Skip for now",
+      "back": "Back",
+      "finish": "Start dictating"
+    },
+    "welcome": {
+      "title": "Welcome to WhisperSM",
+      "description": "Dictate in any app with a single shortcut. Transcription and AI rewriting run on your computer, so nothing you say leaves it.",
+      "features": {
+        "speech": {
+          "title": "Instant dictation",
+          "text": "Hold a shortcut, speak, and the text is pasted where your cursor is."
+        },
+        "ai": {
+          "title": "AI modes",
+          "text": "Clean up, email, message, notes: rewrite your words with an on-device model."
+        },
+        "privacy": {
+          "title": "100% private",
+          "text": "No account, no cloud. Your audio and text stay on this machine."
+        }
+      }
+    },
+    "speech": {
+      "title": "Choose a speech model",
+      "description": "Models run offline. The recommended one works well for most languages and machines. You can add more later.",
+      "showAll": "Show {{count}} more models"
+    },
+    "ai": {
+      "title": "Add an AI model (optional)",
+      "description": "Modes use a small language model to fix punctuation, remove filler words or reformat your dictation. This one runs entirely on your computer.",
+      "details": "{{size}} download · {{ram}} GB RAM recommended",
+      "download": "Download and continue",
+      "ready": "Downloaded and ready",
+      "later": "You can skip this step and add on-device or cloud models later in Models › AI."
+    },
+    "ready": {
+      "title": "You're all set",
+      "descriptionHold": "Hold this shortcut anywhere, speak, release: your words are typed for you.",
+      "descriptionToggle": "Press this shortcut anywhere to start recording, press it again to stop: your words are typed for you.",
+      "tipModesTitle": "Modes",
+      "tipModes": "Press a number key while recording to rewrite the result with a mode.",
+      "tipTrayTitle": "Menu bar",
+      "tipTray": "WhisperSM lives in your menu bar / tray. Closing the window keeps it running."
     }
   },
   "modelSelector": {
@@ -165,7 +222,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Parler Shortcuts",
+        "title": "WhisperSM Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
@@ -325,11 +382,11 @@
       },
       "autostart": {
         "label": "Launch on Startup",
-        "description": "Automatically start Parler when you log in to your computer."
+        "description": "Automatically start WhisperSM when you log in to your computer."
       },
       "showTrayIcon": {
         "label": "Show Tray Icon",
-        "description": "Display the Parler icon in the system tray."
+        "description": "Display the WhisperSM icon in the system tray."
       },
       "overlay": {
         "title": "Overlay Position",
@@ -488,7 +545,8 @@
         "empty": "No actions yet. Create one to start post-processing your transcriptions.",
         "noModelShort": "No model",
         "dialogSubtitle": "Configure how this action rewrites your transcription.",
-        "emptyTitle": "No actions yet"
+        "emptyTitle": "No actions yet",
+        "shortcut": "Global shortcut"
       },
       "description": "Create post-processing actions that rewrite your transcription with an AI model. Trigger them with a global shortcut or by pressing a number key while recording.",
       "defaultShortcut": {
@@ -527,7 +585,7 @@
       },
       "updateChecks": {
         "label": "Check for Updates",
-        "description": "Automatically check for new versions of Parler"
+        "description": "Automatically check for new versions of WhisperSM"
       },
       "soundTheme": {
         "label": "Sound Theme",
@@ -595,11 +653,11 @@
       "title": "About",
       "version": {
         "title": "Version",
-        "description": "Current version of Parler"
+        "description": "Current version of WhisperSM"
       },
       "appDataDirectory": {
         "title": "App Data Directory",
-        "description": "Location where Parler stores its data"
+        "description": "Location where WhisperSM stores its data"
       },
       "exportImport": {
         "title": "Export / Import Settings",
@@ -616,7 +674,7 @@
       },
       "supportDevelopment": {
         "title": "Support Development",
-        "description": "Help us continue building Parler",
+        "description": "Help us continue building WhisperSM",
         "button": "Donate"
       },
       "acknowledgments": {
@@ -624,7 +682,7 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
-          "details": "Parler uses Whisper.cpp for fast, local speech-to-text processing and builds on the original Handy project from handy.computer. Thanks to Georgi Gerganov, the Whisper.cpp contributors, and the Handy maintainers."
+          "details": "WhisperSM uses Whisper.cpp for fast, local speech-to-text processing and builds on the original Handy project from handy.computer. Thanks to Georgi Gerganov, the Whisper.cpp contributors, and the Handy maintainers."
         }
       }
     }
@@ -670,7 +728,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Accessibility Permissions Required",
-    "permissionsDescription": "Parler needs accessibility permissions to type transcribed text.",
+    "permissionsDescription": "WhisperSM needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings",
     "dismiss": "Dismiss"
   },
@@ -687,15 +745,168 @@
     "noInputDevice": "No audio input device was detected. Please connect a microphone or headset and try again.",
     "recordingFailed": "Failed to start recording: {{error}}",
     "modelLoadFailed": "Failed to load model: {{model}}",
-    "modelLoadFailedUnknown": "unknown model"
+    "modelLoadFailedUnknown": "unknown model",
+    "postProcessFailed": "AI post-processing failed"
   },
   "appLanguage": {
     "title": "Application Language",
-    "description": "Change the language of the Parler interface"
+    "description": "Change the language of the WhisperSM interface"
   },
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing...",
     "cancelConfirm": "Esc again to cancel"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "Ready to dictate",
+      "title": "Speak anywhere. Text appears where you type.",
+      "subtitleHold": "Hold the shortcut, talk, release. Your words are transcribed on this computer and pasted into the active app.",
+      "subtitleToggle": "Press the shortcut to start, press it again to stop. Your words are transcribed on this computer and pasted into the active app.",
+      "dictate": "Dictate",
+      "dictateWithAi": "Dictate with AI mode",
+      "changeShortcut": "Change shortcut",
+      "modesHint": "While recording, press a number key to apply a mode to the transcription."
+    },
+    "status": {
+      "speechModel": "Speech model",
+      "noSpeechModel": "No model selected",
+      "aiModel": "AI post-processing",
+      "onDevice": "On-device"
+    },
+    "ai": {
+      "generating": "Generating…",
+      "loading": "Loading model…",
+      "loaded": "{{model}} loaded",
+      "ready": "{{count}} on-device model(s) ready",
+      "cloudOnly": "Cloud models configured",
+      "none": "Add an AI model"
+    },
+    "stats": {
+      "today": "Today",
+      "total": "All time",
+      "words": "{{formatted}} words",
+      "enhanced": "AI enhanced",
+      "enhancedHint": "transcriptions rewritten by a mode",
+      "lastUsed": "Last dictation",
+      "never": "No dictation yet"
+    },
+    "modes": {
+      "title": "Modes",
+      "manage": "Manage modes",
+      "emptyTitle": "Create your first mode",
+      "empty": "Modes rewrite your transcription with AI: clean up, email, message, notes…",
+      "noModel": "No AI model"
+    },
+    "recent": {
+      "title": "Recent transcriptions",
+      "viewAll": "View history",
+      "empty": "Your transcriptions will appear here."
+    },
+    "microphone": {
+      "title": "Microphone"
+    }
+  },
+  "modes": {
+    "title": "Modes",
+    "description": "A mode rewrites your transcription with an AI model: fix punctuation, turn it into an email, a chat message or notes. Trigger a mode with its own shortcut, or press its number key while recording.",
+    "newMode": "New mode",
+    "emptyTitle": "No modes yet",
+    "empty": "Create a mode to clean up or reformat your dictation with AI.",
+    "hint": "The first mode is used by the “Dictate with AI mode” shortcut. Drag-free: edit a mode to change its number key or shortcut.",
+    "card": {
+      "default": "Default",
+      "noModel": "No AI model selected"
+    },
+    "aiShortcut": {
+      "title": "AI shortcut",
+      "description": "A second global shortcut that dictates and applies your default mode automatically."
+    },
+    "dialog": {
+      "newTitle": "New mode",
+      "editTitle": "Edit mode",
+      "subtitle": "Describe how the transcription should be rewritten and pick the AI model that runs it.",
+      "onDevice": "On-device",
+      "noModels": "No AI model available yet. Download an on-device model or add a cloud provider.",
+      "addModel": "Add a model"
+    }
+  },
+  "models": {
+    "title": "Models",
+    "tabs": {
+      "speech": "Speech",
+      "ai": "AI"
+    },
+    "speech": {
+      "description": "Speech-to-text models run fully offline. Pick one that matches your languages and your machine.",
+      "noneDownloaded": "No speech model downloaded yet. Pick one below."
+    },
+    "ai": {
+      "description": "AI models power modes. On-device models never send your text anywhere; cloud providers need an API key.",
+      "localTitle": "On-device models",
+      "localDescription": "Runs inside WhisperSM. No account, no network, no data leaves your computer.",
+      "cloudTitle": "Cloud providers",
+      "cloudDescription": "Optional. Use OpenAI, Anthropic, Groq and others with your own API key.",
+      "loaded": "Loaded",
+      "multilingual": "Multilingual",
+      "englishFirst": "English first",
+      "ram": "{{gb}} GB RAM",
+      "quality": "quality",
+      "resumable": "· resume available",
+      "resume": "Resume",
+      "try": "Try",
+      "unload": "Unload",
+      "tryTitle": "Try {{model}}",
+      "tryHint": "Run a mode on a sample text to check speed and quality on this machine.",
+      "tryMode": "Mode",
+      "trySample": "um so basically i think we should uh move the meeting to thursday at three because tuesday doesnt work for me",
+      "run": "Run",
+      "running": "Running…",
+      "elapsed": "{{seconds}}s",
+      "deleteConfirm": "Delete {{model}} from this computer? You can download it again later.",
+      "downloadComplete": "{{model}} is ready to use.",
+      "downloadFailed": "Model download failed",
+      "loadFailed": "Failed to load {{model}}",
+      "privacyNote": "Models are downloaded once from Hugging Face and stored in the app data folder."
+    }
+  },
+  "settingsPage": {
+    "description": "Shortcuts, audio, output and app behaviour.",
+    "advancedDescription": "Experimental features and hardware acceleration.",
+    "debugHint": "Press Ctrl/Cmd + Shift + D to show the debug page. Something wrong?",
+    "reportIssue": "Report an issue",
+    "sections": {
+      "shortcuts": "Shortcuts",
+      "audio": "Audio",
+      "speech": "Speech",
+      "output": "Output",
+      "app": "App",
+      "history": "History",
+      "advanced": "Advanced",
+      "data": "Data"
+    }
+  },
+  "history": {
+    "description": "Every dictation, with its audio, raw and AI-processed text."
+  },
+  "about": {
+    "tagline": "Private speech to text with on-device AI post-processing. Free and open source.",
+    "releases": "Releases",
+    "reportIssue": "Report an issue",
+    "privacy": {
+      "title": "Privacy",
+      "localTitle": "Everything runs on your computer",
+      "localDescription": "Audio, transcription and on-device AI never leave this machine. Cloud providers are only used if you add one yourself.",
+      "badge": "Offline"
+    },
+    "credits": {
+      "description": "WhisperSM stands on the shoulders of these projects.",
+      "handy": "The open-source speech-to-text app WhisperSM is built on.",
+      "parler": "Melvynx's fork that introduced modes and the modern post-processing pipeline.",
+      "whisper": "High-performance inference for OpenAI's Whisper models.",
+      "candle": "Hugging Face's Rust inference engine used for on-device language models.",
+      "models": "Open-weight language models used for on-device post-processing."
+    },
+    "license": "Released under the MIT license."
   }
 }

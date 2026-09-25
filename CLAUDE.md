@@ -34,7 +34,7 @@ curl -o src-tauri/resources/models/silero_vad_v4.onnx https://blob.handy.compute
 
 ## Architecture Overview
 
-Handy is a cross-platform desktop speech-to-text app built with Tauri 2.x (Rust backend + React/TypeScript frontend).
+WhisperSM is a cross-platform desktop speech-to-text app built with Tauri 2.x (Rust backend + React/TypeScript frontend). It is a fork of Handy/Parler with a redesigned UI, on-device LLM post-processing and GitHub-based auto-updates.
 
 ### Backend Structure (src-tauri/src/)
 
@@ -47,20 +47,27 @@ Handy is a cross-platform desktop speech-to-text app built with Tauri 2.x (Rust 
 - `audio_toolkit/` - Low-level audio processing:
   - `audio/` - Device enumeration, recording, resampling
   - `vad/` - Voice Activity Detection (Silero VAD)
-- `commands/` - Tauri command handlers for frontend communication
-- `shortcut.rs` - Global keyboard shortcut handling
-- `settings.rs` - Application settings management
+- `local_llm/` - On-device language models (GGUF via `candle`):
+  - `catalog.rs` - Curated model list (Qwen 2.5, Llama 3.2) with Hugging Face URLs
+  - `engine.rs` - Inference (chat templates, sampling, KV-cache reset)
+  - `manager.rs` - Downloads with resume/cancel, lazy load, idle unload, Tauri events
+- `commands/` - Tauri command handlers for frontend communication (`local_llm.rs` for AI models)
+- `actions.rs` - Transcription pipeline + post-processing (cloud providers, Apple Intelligence, `local` provider)
+- `shortcut/` - Global keyboard shortcut handling
+- `settings.rs` - Application settings management (providers, saved language models, modes = `post_process_actions`)
 
 ### Frontend Structure (src/)
 
-- `App.tsx` - Main component with onboarding flow
-- `components/settings/` - Settings UI (35+ files)
-- `components/model-selector/` - Model management interface
-- `components/onboarding/` - First-run experience
-- `hooks/useSettings.ts`, `useModels.ts` - State management hooks
-- `stores/settingsStore.ts` - Zustand store for settings
-- `bindings.ts` - Auto-generated Tauri type bindings (via tauri-specta)
+- `App.tsx` - Shell (sidebar + page router, onboarding gate, global toasts)
+- `pages/` - Home, Modes, Models (Speech / AI tabs), History, Settings, About
+- `components/Sidebar.tsx` - Navigation + speech model status + updater
+- `components/settings/` - Individual setting rows reused by the Settings page
+- `components/onboarding/OnboardingWizard.tsx` - Welcome → permissions → speech model → AI model → ready
+- `components/ui/` - Design system primitives (Button, Dropdown, SettingsGroup, Kbd, SegmentedControl…)
+- `stores/settingsStore.ts`, `modelStore.ts`, `localLlmStore.ts` - Zustand stores
+- `bindings.ts` - Auto-generated Tauri type bindings (tauri-specta). Regenerate with `cd src-tauri && cargo test export_bindings -- --ignored`
 - `overlay/` - Recording overlay window code
+- `App.css` - Design tokens (Geist font, accent gradient, light/dark surfaces)
 
 ### Key Patterns
 
@@ -68,7 +75,7 @@ Handy is a cross-platform desktop speech-to-text app built with Tauri 2.x (Rust 
 
 **Command-Event Architecture:** Frontend → Backend via Tauri commands; Backend → Frontend via events.
 
-**Pipeline Processing:** Audio → VAD → Whisper/Parakeet → Text output → Clipboard/Paste
+**Pipeline Processing:** Audio → VAD → Whisper/Parakeet → (optional mode: local candle model or cloud API) → Clipboard/Paste
 
 **State Flow:** Zustand → Tauri Command → Rust State → Persistence (tauri-plugin-store)
 
@@ -109,6 +116,11 @@ src/i18n/
 - Tailwind CSS for styling
 - Path aliases: `@/` → `./src/`
 
+## Releases
+
+- `bun run release:bump <patch|minor|major> --tag` then `git push --follow-tags` triggers `.github/workflows/release.yml`, which builds all platforms and publishes a GitHub release with `latest.json` for the in-app updater. See `RELEASING.md`.
+- CI for pull requests lives in `.github/workflows/ci.yml` (frontend checks + Rust tests with the mock transcription engine).
+
 ## Commit Guidelines
 
 Use conventional commits:
@@ -121,7 +133,7 @@ Use conventional commits:
 
 ## CLI Parameters
 
-Handy supports command-line parameters on all platforms for integration with scripts, window managers, and autostart configurations.
+WhisperSM supports command-line parameters on all platforms for integration with scripts, window managers, and autostart configurations.
 
 **Implementation files:**
 

@@ -15,7 +15,11 @@
     "postProcessing": "后处理",
     "history": "历史记录",
     "debug": "调试",
-    "about": "关于"
+    "about": "关于",
+    "home": "Home",
+    "modes": "Modes",
+    "settings": "Settings",
+    "speechModel": "Speech model"
   },
   "onboarding": {
     "subtitle": "请选择一个转录模型以开始使用",
@@ -92,11 +96,12 @@
     },
     "errors": {
       "loadModels": "无法加载可用模型",
-      "downloadModel": "模型下载失败: {{error}}"
+      "downloadModel": "模型下载失败: {{error}}",
+      "selectModel": "Failed to activate the model. Please try again."
     },
     "permissions": {
       "title": "需要权限",
-      "description": "Parler 需要一些权限才能正常工作。",
+      "description": "WhisperSM 需要一些权限才能正常工作。",
       "microphone": {
         "title": "麦克风访问",
         "description": "需要听取您的语音进行转录。"
@@ -114,6 +119,58 @@
         "checkFailed": "检查权限失败。请重试。",
         "requestFailed": "请求权限失败。请重试。"
       }
+    },
+    "steps": {
+      "permissions": "Step 1",
+      "speech": "Speech model",
+      "ai": "AI model"
+    },
+    "actions": {
+      "getStarted": "Get started",
+      "continue": "Continue",
+      "skip": "Skip for now",
+      "back": "Back",
+      "finish": "Start dictating"
+    },
+    "welcome": {
+      "title": "Welcome to WhisperSM",
+      "description": "Dictate in any app with a single shortcut. Transcription and AI rewriting run on your computer, so nothing you say leaves it.",
+      "features": {
+        "speech": {
+          "title": "Instant dictation",
+          "text": "Hold a shortcut, speak, and the text is pasted where your cursor is."
+        },
+        "ai": {
+          "title": "AI modes",
+          "text": "Clean up, email, message, notes: rewrite your words with an on-device model."
+        },
+        "privacy": {
+          "title": "100% private",
+          "text": "No account, no cloud. Your audio and text stay on this machine."
+        }
+      }
+    },
+    "speech": {
+      "title": "Choose a speech model",
+      "description": "Models run offline. The recommended one works well for most languages and machines. You can add more later.",
+      "showAll": "Show {{count}} more models"
+    },
+    "ai": {
+      "title": "Add an AI model (optional)",
+      "description": "Modes use a small language model to fix punctuation, remove filler words or reformat your dictation. This one runs entirely on your computer.",
+      "details": "{{size}} download · {{ram}} GB RAM recommended",
+      "download": "Download and continue",
+      "ready": "Downloaded and ready",
+      "later": "You can skip this step and add on-device or cloud models later in Models › AI."
+    },
+    "ready": {
+      "title": "You're all set",
+      "descriptionHold": "Hold this shortcut anywhere, speak, release: your words are typed for you.",
+      "descriptionToggle": "Press this shortcut anywhere to start recording, press it again to stop: your words are typed for you.",
+      "tipModesTitle": "Modes",
+      "tipModes": "Press a number key while recording to rewrite the result with a mode.",
+      "tipTrayTitle": "Menu bar",
+      "tipTray": "WhisperSM lives in your menu bar / tray. Closing the window keeps it running."
     }
   },
   "modelSelector": {
@@ -181,12 +238,31 @@
         "fetchModels": "Refresh models",
         "label": "Label (optional)",
         "labelPlaceholder": "Display name for this model"
+      },
+      "tabs": {
+        "transcription": "Transcription",
+        "processing": "Processing"
+      },
+      "processingModels": {
+        "title": "Processing Models",
+        "description": "Save LLM models for use in post-processing actions.",
+        "noModels": "No processing models saved yet. Add one to use in your actions.",
+        "addModel": "Add Processing Model",
+        "provider": "Provider",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "Enter API key",
+        "model": "Model",
+        "modelPlaceholder": "Select or type a model",
+        "save": "Save",
+        "cancel": "Cancel",
+        "fetchModels": "Fetch models",
+        "alreadySaved": "This model is already saved."
       }
     },
     "general": {
       "title": "通用",
       "shortcut": {
-        "title": "Parler 快捷键",
+        "title": "WhisperSM 快捷键",
         "description": "配置启动语音转文字录制的键盘快捷键",
         "loading": "加载快捷键中...",
         "none": "未配置快捷键",
@@ -204,13 +280,22 @@
           "transcribe_with_post_process": {
             "name": "后处理快捷键",
             "description": "可选：一个专用快捷键，始终对您的转录应用 AI 后处理。"
+          },
+          "show_history": {
+            "name": "Show History",
+            "description": "Opens the app window and navigates to the History tab."
+          },
+          "copy_latest_history": {
+            "name": "Copy Latest History",
+            "description": "Copies the latest transcription entry to your clipboard."
           }
         },
         "errors": {
           "restore": "无法恢复原始快捷键",
           "set": "无法设置快捷键: {{error}}",
           "reset": "无法将快捷键重置为原始值"
-        }
+        },
+        "clickToSet": "Click to set"
       },
       "language": {
         "title": "语言",
@@ -255,7 +340,8 @@
         "output": "输出",
         "transcription": "转录",
         "history": "历史",
-        "experimental": "实验性"
+        "experimental": "实验性",
+        "cloudModels": "Cloud Models"
       },
       "experimentalToggle": {
         "label": "实验性功能",
@@ -286,11 +372,11 @@
       },
       "autostart": {
         "label": "开机启动",
-        "description": "登录计算机时自动启动 Parler。"
+        "description": "登录计算机时自动启动 WhisperSM。"
       },
       "showTrayIcon": {
         "label": "显示托盘图标",
-        "description": "在系统托盘中显示 Parler 图标。"
+        "description": "在系统托盘中显示 WhisperSM 图标。"
       },
       "overlay": {
         "title": "悬浮窗位置",
@@ -450,7 +536,8 @@
         "empty": "No actions yet. Create one to start post-processing your transcriptions.",
         "noModelShort": "No model",
         "dialogSubtitle": "Configure how this action rewrites your transcription.",
-        "emptyTitle": "No actions yet"
+        "emptyTitle": "No actions yet",
+        "shortcut": "Global shortcut"
       },
       "defaultShortcut": {
         "title": "Default shortcut",
@@ -488,7 +575,7 @@
       },
       "updateChecks": {
         "label": "检查更新",
-        "description": "自动检查 Parler 的新版本"
+        "description": "自动检查 WhisperSM 的新版本"
       },
       "soundTheme": {
         "label": "声音主题",
@@ -556,11 +643,11 @@
       "title": "关于",
       "version": {
         "title": "版本",
-        "description": "Parler 的当前版本"
+        "description": "WhisperSM 的当前版本"
       },
       "appDataDirectory": {
         "title": "应用数据目录",
-        "description": "Parler 存储数据的位置"
+        "description": "WhisperSM 存储数据的位置"
       },
       "sourceCode": {
         "title": "源代码",
@@ -569,7 +656,7 @@
       },
       "supportDevelopment": {
         "title": "支持开发",
-        "description": "帮助我们继续开发 Parler",
+        "description": "帮助我们继续开发 WhisperSM",
         "button": "捐赠"
       },
       "acknowledgments": {
@@ -577,9 +664,27 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "OpenAI Whisper 自动语音识别模型的高性能推理",
-          "details": "Parler 使用 Whisper.cpp 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。"
+          "details": "WhisperSM 使用 Whisper.cpp 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。"
         }
+      },
+      "exportImport": {
+        "title": "Export / Import Settings",
+        "description": "Transfer your configuration to another computer",
+        "export": "Export",
+        "import": "Import",
+        "exportSuccess": "Settings exported successfully",
+        "importSuccess": "Settings imported successfully"
       }
+    },
+    "longAudioModel": {
+      "title": "Long Audio Model",
+      "description": "Automatically switch to a different model when recording duration exceeds the threshold.",
+      "modelLabel": "Model for long recordings",
+      "modelDescription": "Select a model to use for recordings longer than the threshold.",
+      "thresholdLabel": "Duration threshold (seconds)",
+      "thresholdDescription": "Switch to the long audio model when recording exceeds this duration.",
+      "disabled": "Disabled",
+      "seconds": "{{value}}s"
     }
   },
   "footer": {
@@ -623,7 +728,7 @@
   },
   "accessibility": {
     "permissionsRequired": "需要辅助功能权限",
-    "permissionsDescription": "Parler 需要辅助功能权限才能输入转录的文字。",
+    "permissionsDescription": "WhisperSM 需要辅助功能权限才能输入转录的文字。",
     "openSettings": "打开系统设置",
     "dismiss": "关闭"
   },
@@ -640,14 +745,168 @@
     "noInputDevice": "未检测到音频输入设备。请连接麦克风或耳机后重试。",
     "recordingFailed": "录音启动失败: {{error}}",
     "modelLoadFailed": "加载模型失败: {{model}}",
-    "modelLoadFailedUnknown": "未知模型"
+    "modelLoadFailedUnknown": "未知模型",
+    "postProcessFailed": "AI post-processing failed"
   },
   "appLanguage": {
     "title": "应用语言",
-    "description": "更改 Parler 界面的语言"
+    "description": "更改 WhisperSM 界面的语言"
   },
   "overlay": {
     "transcribing": "正在转录...",
-    "processing": "处理中..."
+    "processing": "处理中...",
+    "cancelConfirm": "Esc again to cancel"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "Ready to dictate",
+      "title": "Speak anywhere. Text appears where you type.",
+      "subtitleHold": "Hold the shortcut, talk, release. Your words are transcribed on this computer and pasted into the active app.",
+      "subtitleToggle": "Press the shortcut to start, press it again to stop. Your words are transcribed on this computer and pasted into the active app.",
+      "dictate": "Dictate",
+      "dictateWithAi": "Dictate with AI mode",
+      "changeShortcut": "Change shortcut",
+      "modesHint": "While recording, press a number key to apply a mode to the transcription."
+    },
+    "status": {
+      "speechModel": "Speech model",
+      "noSpeechModel": "No model selected",
+      "aiModel": "AI post-processing",
+      "onDevice": "On-device"
+    },
+    "ai": {
+      "generating": "Generating…",
+      "loading": "Loading model…",
+      "loaded": "{{model}} loaded",
+      "ready": "{{count}} on-device model(s) ready",
+      "cloudOnly": "Cloud models configured",
+      "none": "Add an AI model"
+    },
+    "stats": {
+      "today": "Today",
+      "total": "All time",
+      "words": "{{formatted}} words",
+      "enhanced": "AI enhanced",
+      "enhancedHint": "transcriptions rewritten by a mode",
+      "lastUsed": "Last dictation",
+      "never": "No dictation yet"
+    },
+    "modes": {
+      "title": "Modes",
+      "manage": "Manage modes",
+      "emptyTitle": "Create your first mode",
+      "empty": "Modes rewrite your transcription with AI: clean up, email, message, notes…",
+      "noModel": "No AI model"
+    },
+    "recent": {
+      "title": "Recent transcriptions",
+      "viewAll": "View history",
+      "empty": "Your transcriptions will appear here."
+    },
+    "microphone": {
+      "title": "Microphone"
+    }
+  },
+  "modes": {
+    "title": "Modes",
+    "description": "A mode rewrites your transcription with an AI model: fix punctuation, turn it into an email, a chat message or notes. Trigger a mode with its own shortcut, or press its number key while recording.",
+    "newMode": "New mode",
+    "emptyTitle": "No modes yet",
+    "empty": "Create a mode to clean up or reformat your dictation with AI.",
+    "hint": "The first mode is used by the “Dictate with AI mode” shortcut. Drag-free: edit a mode to change its number key or shortcut.",
+    "card": {
+      "default": "Default",
+      "noModel": "No AI model selected"
+    },
+    "aiShortcut": {
+      "title": "AI shortcut",
+      "description": "A second global shortcut that dictates and applies your default mode automatically."
+    },
+    "dialog": {
+      "newTitle": "New mode",
+      "editTitle": "Edit mode",
+      "subtitle": "Describe how the transcription should be rewritten and pick the AI model that runs it.",
+      "onDevice": "On-device",
+      "noModels": "No AI model available yet. Download an on-device model or add a cloud provider.",
+      "addModel": "Add a model"
+    }
+  },
+  "models": {
+    "title": "Models",
+    "tabs": {
+      "speech": "Speech",
+      "ai": "AI"
+    },
+    "speech": {
+      "description": "Speech-to-text models run fully offline. Pick one that matches your languages and your machine.",
+      "noneDownloaded": "No speech model downloaded yet. Pick one below."
+    },
+    "ai": {
+      "description": "AI models power modes. On-device models never send your text anywhere; cloud providers need an API key.",
+      "localTitle": "On-device models",
+      "localDescription": "Runs inside WhisperSM. No account, no network, no data leaves your computer.",
+      "cloudTitle": "Cloud providers",
+      "cloudDescription": "Optional. Use OpenAI, Anthropic, Groq and others with your own API key.",
+      "loaded": "Loaded",
+      "multilingual": "Multilingual",
+      "englishFirst": "English first",
+      "ram": "{{gb}} GB RAM",
+      "quality": "quality",
+      "resumable": "· resume available",
+      "resume": "Resume",
+      "try": "Try",
+      "unload": "Unload",
+      "tryTitle": "Try {{model}}",
+      "tryHint": "Run a mode on a sample text to check speed and quality on this machine.",
+      "tryMode": "Mode",
+      "trySample": "um so basically i think we should uh move the meeting to thursday at three because tuesday doesnt work for me",
+      "run": "Run",
+      "running": "Running…",
+      "elapsed": "{{seconds}}s",
+      "deleteConfirm": "Delete {{model}} from this computer? You can download it again later.",
+      "downloadComplete": "{{model}} is ready to use.",
+      "downloadFailed": "Model download failed",
+      "loadFailed": "Failed to load {{model}}",
+      "privacyNote": "Models are downloaded once from Hugging Face and stored in the app data folder."
+    }
+  },
+  "settingsPage": {
+    "description": "Shortcuts, audio, output and app behaviour.",
+    "advancedDescription": "Experimental features and hardware acceleration.",
+    "debugHint": "Press Ctrl/Cmd + Shift + D to show the debug page. Something wrong?",
+    "reportIssue": "Report an issue",
+    "sections": {
+      "shortcuts": "Shortcuts",
+      "audio": "Audio",
+      "speech": "Speech",
+      "output": "Output",
+      "app": "App",
+      "history": "History",
+      "advanced": "Advanced",
+      "data": "Data"
+    }
+  },
+  "history": {
+    "description": "Every dictation, with its audio, raw and AI-processed text."
+  },
+  "about": {
+    "tagline": "Private speech to text with on-device AI post-processing. Free and open source.",
+    "releases": "Releases",
+    "reportIssue": "Report an issue",
+    "privacy": {
+      "title": "Privacy",
+      "localTitle": "Everything runs on your computer",
+      "localDescription": "Audio, transcription and on-device AI never leave this machine. Cloud providers are only used if you add one yourself.",
+      "badge": "Offline"
+    },
+    "credits": {
+      "description": "WhisperSM stands on the shoulders of these projects.",
+      "handy": "The open-source speech-to-text app WhisperSM is built on.",
+      "parler": "Melvynx's fork that introduced modes and the modern post-processing pipeline.",
+      "whisper": "High-performance inference for OpenAI's Whisper models.",
+      "candle": "Hugging Face's Rust inference engine used for on-device language models.",
+      "models": "Open-weight language models used for on-device post-processing."
+    },
+    "license": "Released under the MIT license."
   }
 }

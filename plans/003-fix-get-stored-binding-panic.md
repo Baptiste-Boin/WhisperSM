@@ -65,18 +65,20 @@ it instead of panicking.
 
 ## Commands you will need
 
-| Purpose    | Command                              | Expected on success |
-|------------|--------------------------------------|---------------------|
-| Rust build | `cd src-tauri && cargo check`        | exit 0, no errors   |
-| Rust tests | `cd src-tauri && cargo test settings`| build + pass        |
+| Purpose    | Command                               | Expected on success |
+| ---------- | ------------------------------------- | ------------------- |
+| Rust build | `cd src-tauri && cargo check`         | exit 0, no errors   |
+| Rust tests | `cd src-tauri && cargo test settings` | build + pass        |
 
 ## Scope
 
 **In scope** (the only files you should modify):
+
 - `src-tauri/src/settings.rs` — change `get_stored_binding`'s signature and body
 - `src-tauri/src/shortcut/mod.rs` — update the single caller `reset_binding`
 
 **Out of scope** (do NOT touch):
+
 - Any other function in `settings.rs`. In particular, do NOT change the other
   `.unwrap()` calls in `get_settings`/`write_settings` (lines ~1095, 1145, 1156)
   — those serialize known-good default structs and are a separate concern.

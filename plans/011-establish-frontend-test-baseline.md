@@ -42,8 +42,11 @@ contributors) can extend and that CI can gate on. The Rust side already has
   - `src/lib/utils/format.ts` — `formatModelSize(sizeMb)` returns strings like
     `"487 MB"`, `"1.6 GB"`, `"Unknown size"` for null/zero/negative. Excerpt:
     ```ts
-    export const formatModelSize = (sizeMb: number | null | undefined): string => {
-      if (!sizeMb || !Number.isFinite(sizeMb) || sizeMb <= 0) return "Unknown size";
+    export const formatModelSize = (
+      sizeMb: number | null | undefined,
+    ): string => {
+      if (!sizeMb || !Number.isFinite(sizeMb) || sizeMb <= 0)
+        return "Unknown size";
       // ... MB vs GB formatting
     };
     ```
@@ -54,16 +57,17 @@ contributors) can extend and that CI can gate on. The Rust side already has
 
 ## Commands you will need
 
-| Purpose    | Command            | Expected on success |
-|------------|--------------------|---------------------|
-| Install    | `bun install`      | exit 0              |
-| Unit tests | `bun run test`     | all tests pass, exit 0 |
-| Typecheck  | `bunx tsc --noEmit`| exit 0              |
+| Purpose    | Command                      | Expected on success              |
+| ---------- | ---------------------------- | -------------------------------- |
+| Install    | `bun install`                | exit 0                           |
+| Unit tests | `bun run test`               | all tests pass, exit 0           |
+| Typecheck  | `bunx tsc --noEmit`          | exit 0                           |
 | Rust tests | `cd src-tauri && cargo test` | builds + passes (existing tests) |
 
 ## Scope
 
 **In scope** (create/modify only these):
+
 - `package.json` — add `vitest` devDependency and a `"test"` script.
 - `vitest.config.ts` (create) — minimal config with the `@/` alias.
 - 2–3 new test files colocated with their targets, e.g.
@@ -71,6 +75,7 @@ contributors) can extend and that CI can gate on. The Rust side already has
   `src/utils/dateFormat.test.ts`.
 
 **Out of scope** (do NOT touch):
+
 - Application source under test — only read it; do not change `format.ts` et al.
 - Playwright setup (`playwright.config.ts`, `tests/`) — leave the e2e harness as
   is.
@@ -127,9 +132,11 @@ If `__dirname` is unavailable under the repo's ESM setup, use the
 ### Step 3: Add the `test` script
 
 In `package.json` `scripts`, add:
+
 ```json
     "test": "vitest run",
 ```
+
 (`vitest run` runs once and exits — correct for CI and `bun run test`. Watch mode
 remains available via `bunx vitest`.)
 
@@ -146,8 +153,8 @@ no-undef on globals):
   - `formatModelSize(0)` / `null` / `undefined` / negative → `"Unknown size"`.
   - a sub-GB value → ends with `" MB"`.
   - a >= 1024 value → ends with `" GB"`.
-  (Assert on the suffix and the "Unknown size" sentinel; avoid asserting exact
-  locale-formatted digits since `Intl.NumberFormat` is locale-dependent.)
+    (Assert on the suffix and the "Unknown size" sentinel; avoid asserting exact
+    locale-formatted digits since `Intl.NumberFormat` is locale-dependent.)
 - `src/lib/utils/keyboard.test.ts` — read `keyboard.ts`, pick one or two exported
   pure functions, and test their documented behavior (e.g. formatting a key
   combo). Only test exported, pure functions.
@@ -156,6 +163,7 @@ no-undef on globals):
   separators) rather than exact locale output.
 
 Example shape:
+
 ```ts
 import { describe, it, expect } from "vitest";
 import { formatModelSize } from "./format";
@@ -181,6 +189,7 @@ describe("formatModelSize", () => {
 ### Step 5: Confirm typecheck and Rust tests still work
 
 **Verify**:
+
 - `bunx tsc --noEmit` → exit 0 (the new config/tests don't break types).
 - `cd src-tauri && cargo test` → existing Rust tests build and pass (do not fix
   unrelated pre-existing failures here; report them if present).
@@ -217,9 +226,9 @@ Stop and report back (do not improvise) if:
 ## Maintenance notes
 
 - This is a foundation. Natural follow-ups (separate plans): a jsdom environment
-  + Tauri/Zustand mocks to test hooks (`useSettings`) and components
-  (`PostProcessingSettings`, `GlobalShortcutInput`), and wiring `bun run test` +
-  `cargo test` into CI as required gates.
+  - Tauri/Zustand mocks to test hooks (`useSettings`) and components
+    (`PostProcessingSettings`, `GlobalShortcutInput`), and wiring `bun run test` +
+    `cargo test` into CI as required gates.
 - A reviewer should confirm the assertions are locale-robust and that no app
   source was modified to make tests pass.
 - Other plans in this set list `bun run test` as a gate; this plan makes that

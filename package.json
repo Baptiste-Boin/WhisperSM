@@ -1,5 +1,5 @@
 {
-  "name": "parler-app",
+  "name": "whispersm",
   "private": true,
   "version": "0.9.1",
   "type": "module",
@@ -8,8 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev:parlerdev": "tauri dev --config src-tauri/tauri.dev.conf.json",
-    "tauri:build:parlerdev": "tauri build --config src-tauri/tauri.dev.conf.json",
+    "tauri:dev:dev-flavor": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "tauri:build:dev-flavor": "tauri build --config src-tauri/tauri.dev.conf.json",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write . && cd src-tauri && cargo fmt",
@@ -19,7 +19,10 @@
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "check:translations": "bun scripts/check-translations.ts",
-    "postinstall": "bun scripts/check-nix-deps.ts"
+    "postinstall": "bun scripts/check-nix-deps.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "format:check:frontend": "prettier --check .",
+    "release:bump": "bun scripts/bump-version.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.16",

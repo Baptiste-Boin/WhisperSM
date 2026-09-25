@@ -16,20 +16,20 @@ tests).
 Run in numeric order unless a dependency says otherwise. The first three are
 trivial, low-risk unblockers; 012 is the highest-risk and should land after 011.
 
-| Plan | Title | Priority | Effort | Risk | Depends on | Status |
-|------|-------|----------|--------|------|------------|--------|
-| 001 | Add a standalone `typecheck` npm script | P1 | S | LOW | — | TODO |
-| 002 | Remove the dead Gemini client and command module | P1 | S | LOW | — | TODO |
-| 003 | Stop `get_stored_binding` panicking on unknown id | P1 | S | LOW | — | TODO |
-| 004 | Fix `dotool` multi-line typing / command injection | P2 | S | LOW | — | TODO |
-| 005 | Validate the custom LLM provider `base_url` (https-except-localhost) | P2 | S | LOW | — | TODO |
-| 006 | Extract a shared `ToggleSetting` component | P2 | S | LOW | — | TODO |
-| 007 | Backfill 36 missing translation keys across 19 locales | P2 | S | LOW | — | TODO |
-| 008 | Resolve high/moderate dev-dependency audit advisories | P2 | S | LOW | — | TODO |
-| 009 | Surface a toast when post-processing silently fails | P2 | M | MED | — | TODO |
-| 010 | Document post-processing & reconcile the README roadmap | P2 | M | LOW | — | TODO |
-| 011 | Establish a frontend unit-test baseline (Vitest) | P1 | M | LOW | — | TODO |
-| 012 | Move LLM API keys into the OS keychain | P1 | L | HIGH | 011 | TODO |
+| Plan | Title                                                                | Priority | Effort | Risk | Depends on | Status |
+| ---- | -------------------------------------------------------------------- | -------- | ------ | ---- | ---------- | ------ |
+| 001  | Add a standalone `typecheck` npm script                              | P1       | S      | LOW  | —          | TODO   |
+| 002  | Remove the dead Gemini client and command module                     | P1       | S      | LOW  | —          | TODO   |
+| 003  | Stop `get_stored_binding` panicking on unknown id                    | P1       | S      | LOW  | —          | TODO   |
+| 004  | Fix `dotool` multi-line typing / command injection                   | P2       | S      | LOW  | —          | TODO   |
+| 005  | Validate the custom LLM provider `base_url` (https-except-localhost) | P2       | S      | LOW  | —          | TODO   |
+| 006  | Extract a shared `ToggleSetting` component                           | P2       | S      | LOW  | —          | TODO   |
+| 007  | Backfill 36 missing translation keys across 19 locales               | P2       | S      | LOW  | —          | TODO   |
+| 008  | Resolve high/moderate dev-dependency audit advisories                | P2       | S      | LOW  | —          | TODO   |
+| 009  | Surface a toast when post-processing silently fails                  | P2       | M      | MED  | —          | TODO   |
+| 010  | Document post-processing & reconcile the README roadmap              | P2       | M      | LOW  | —          | TODO   |
+| 011  | Establish a frontend unit-test baseline (Vitest)                     | P1       | M      | LOW  | —          | TODO   |
+| 012  | Move LLM API keys into the OS keychain                               | P1       | L      | HIGH | 011        | TODO   |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED
 (one-line rationale).
