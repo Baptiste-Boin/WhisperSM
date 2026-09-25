@@ -705,4 +705,3 @@ The project is done when:
 - Whether Android starts with bubble or full IME.
 - Whether iOS insertion should prioritize keyboard insertion or clipboard fallback.
 - Whether local mobile models are based on whisper.cpp, ONNX Runtime Mobile, or Core ML first.
-

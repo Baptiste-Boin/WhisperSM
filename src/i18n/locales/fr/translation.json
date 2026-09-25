@@ -15,7 +15,11 @@
     "postProcessing": "Post-traitement",
     "history": "Historique",
     "debug": "Débogage",
-    "about": "À propos"
+    "about": "À propos",
+    "home": "Accueil",
+    "modes": "Modes",
+    "settings": "Réglages",
+    "speechModel": "Modèle vocal"
   },
   "onboarding": {
     "subtitle": "Pour commencer, choisissez un modèle de transcription",
@@ -92,11 +96,12 @@
     },
     "errors": {
       "loadModels": "Échec du chargement des modèles disponibles",
-      "downloadModel": "Échec du téléchargement du modèle : {{error}}"
+      "downloadModel": "Échec du téléchargement du modèle : {{error}}",
+      "selectModel": "Impossible d'activer le modèle. Veuillez réessayer."
     },
     "permissions": {
       "title": "Autorisations requises",
-      "description": "Parler a besoin de quelques autorisations pour fonctionner correctement.",
+      "description": "WhisperSM a besoin de quelques autorisations pour fonctionner correctement.",
       "microphone": {
         "title": "Accès au microphone",
         "description": "Nécessaire pour entendre votre voix pour la transcription."
@@ -114,6 +119,58 @@
         "checkFailed": "Échec de la vérification des autorisations. Veuillez réessayer.",
         "requestFailed": "Échec de la demande d'autorisation. Veuillez réessayer."
       }
+    },
+    "steps": {
+      "permissions": "Étape 1",
+      "speech": "Modèle vocal",
+      "ai": "Modèle IA"
+    },
+    "actions": {
+      "getStarted": "Commencer",
+      "continue": "Continuer",
+      "skip": "Passer pour l'instant",
+      "back": "Retour",
+      "finish": "Commencer à dicter"
+    },
+    "welcome": {
+      "title": "Bienvenue dans WhisperSM",
+      "description": "Dictez dans n'importe quelle application avec un seul raccourci. La transcription et la réécriture IA s'exécutent sur votre ordinateur : rien de ce que vous dites ne le quitte.",
+      "features": {
+        "speech": {
+          "title": "Dictée instantanée",
+          "text": "Maintenez un raccourci, parlez, et le texte est collé là où se trouve votre curseur."
+        },
+        "ai": {
+          "title": "Modes IA",
+          "text": "Nettoyage, e-mail, message, notes : réécrivez vos mots avec un modèle local."
+        },
+        "privacy": {
+          "title": "100 % privé",
+          "text": "Aucun compte, aucun cloud. Votre audio et votre texte restent sur cette machine."
+        }
+      }
+    },
+    "speech": {
+      "title": "Choisissez un modèle vocal",
+      "description": "Les modèles fonctionnent hors ligne. Le modèle recommandé convient à la plupart des langues et des machines. Vous pourrez en ajouter d'autres plus tard.",
+      "showAll": "Afficher {{count}} modèles de plus"
+    },
+    "ai": {
+      "title": "Ajouter un modèle IA (optionnel)",
+      "description": "Les modes utilisent un petit modèle de langage pour corriger la ponctuation, retirer les hésitations ou reformater votre dictée. Celui-ci s'exécute entièrement sur votre ordinateur.",
+      "details": "{{size}} à télécharger · {{ram}} Go de RAM recommandés",
+      "download": "Télécharger et continuer",
+      "ready": "Téléchargé et prêt",
+      "later": "Vous pouvez passer cette étape et ajouter des modèles locaux ou cloud plus tard dans Modèles › IA."
+    },
+    "ready": {
+      "title": "Tout est prêt",
+      "descriptionHold": "Maintenez ce raccourci n'importe où, parlez, relâchez : vos mots sont saisis pour vous.",
+      "descriptionToggle": "Appuyez sur ce raccourci n'importe où pour démarrer l'enregistrement, appuyez à nouveau pour arrêter : vos mots sont saisis pour vous.",
+      "tipModesTitle": "Modes",
+      "tipModes": "Appuyez sur une touche numérique pendant l'enregistrement pour réécrire le résultat avec un mode.",
+      "tipTrayTitle": "Barre de menus",
+      "tipTray": "WhisperSM vit dans votre barre de menus / zone de notification. Fermer la fenêtre ne l'arrête pas."
     }
   },
   "modelSelector": {
@@ -181,12 +238,31 @@
         "fetchModels": "Actualiser les modèles",
         "label": "Libellé (optionnel)",
         "labelPlaceholder": "Nom d’affichage de ce modèle"
+      },
+      "tabs": {
+        "transcription": "Transcription",
+        "processing": "Processing"
+      },
+      "processingModels": {
+        "title": "Processing Models",
+        "description": "Save LLM models for use in post-processing actions.",
+        "noModels": "No processing models saved yet. Add one to use in your actions.",
+        "addModel": "Add Processing Model",
+        "provider": "Provider",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "Enter API key",
+        "model": "Model",
+        "modelPlaceholder": "Select or type a model",
+        "save": "Save",
+        "cancel": "Cancel",
+        "fetchModels": "Fetch models",
+        "alreadySaved": "This model is already saved."
       }
     },
     "general": {
       "title": "Général",
       "shortcut": {
-        "title": "Raccourcis Parler",
+        "title": "Raccourcis WhisperSM",
         "description": "Configurer les raccourcis clavier pour déclencher l'enregistrement de la reconnaissance vocale",
         "loading": "Chargement des raccourcis...",
         "none": "Aucun raccourci configuré",
@@ -264,7 +340,8 @@
         "output": "Sortie",
         "transcription": "Transcription",
         "history": "Historique",
-        "experimental": "Expérimental"
+        "experimental": "Expérimental",
+        "cloudModels": "Cloud Models"
       },
       "experimentalToggle": {
         "label": "Fonctionnalités Expérimentales",
@@ -295,11 +372,11 @@
       },
       "autostart": {
         "label": "Lancer au démarrage",
-        "description": "Démarrer automatiquement Parler lorsque vous vous connectez à votre ordinateur."
+        "description": "Démarrer automatiquement WhisperSM lorsque vous vous connectez à votre ordinateur."
       },
       "showTrayIcon": {
         "label": "Afficher l'icône de la barre",
-        "description": "Afficher l'icône de Parler dans la barre système."
+        "description": "Afficher l'icône de WhisperSM dans la barre système."
       },
       "overlay": {
         "title": "Position de la fenêtre d'enregistrement",
@@ -459,7 +536,8 @@
         "empty": "Aucune action pour l’instant. Créez-en une pour post-traiter vos transcriptions.",
         "noModelShort": "Aucun modèle",
         "dialogSubtitle": "Configurez la façon dont cette action réécrit votre transcription.",
-        "emptyTitle": "Aucune action"
+        "emptyTitle": "Aucune action",
+        "shortcut": "Raccourci global"
       },
       "defaultShortcut": {
         "title": "Raccourci par défaut",
@@ -497,7 +575,7 @@
       },
       "updateChecks": {
         "label": "Vérifier les mises à jour",
-        "description": "Vérifier automatiquement les nouvelles versions de Parler"
+        "description": "Vérifier automatiquement les nouvelles versions de WhisperSM"
       },
       "soundTheme": {
         "label": "Thème sonore",
@@ -565,11 +643,11 @@
       "title": "À propos",
       "version": {
         "title": "Version",
-        "description": "Version actuelle de Parler"
+        "description": "Version actuelle de WhisperSM"
       },
       "appDataDirectory": {
         "title": "Emplacement des données de l'application",
-        "description": "Emplacement où Parler stocke ses données"
+        "description": "Emplacement où WhisperSM stocke ses données"
       },
       "exportImport": {
         "title": "Exporter / Importer les paramètres",
@@ -586,7 +664,7 @@
       },
       "supportDevelopment": {
         "title": "Soutenir le développement",
-        "description": "Aidez-nous à continuer à construire Parler",
+        "description": "Aidez-nous à continuer à construire WhisperSM",
         "button": "Faire un don"
       },
       "acknowledgments": {
@@ -594,9 +672,19 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "Inférence haute performance du modèle de reconnaissance vocale automatique Whisper d'OpenAI",
-          "details": "Parler utilise Whisper.cpp pour un traitement rapide et local de la parole en texte. Merci au travail incroyable de Georgi Gerganov et des contributeurs."
+          "details": "WhisperSM utilise Whisper.cpp pour un traitement rapide et local de la parole en texte. Merci au travail incroyable de Georgi Gerganov et des contributeurs."
         }
       }
+    },
+    "longAudioModel": {
+      "title": "Long Audio Model",
+      "description": "Automatically switch to a different model when recording duration exceeds the threshold.",
+      "modelLabel": "Model for long recordings",
+      "modelDescription": "Select a model to use for recordings longer than the threshold.",
+      "thresholdLabel": "Duration threshold (seconds)",
+      "thresholdDescription": "Switch to the long audio model when recording exceeds this duration.",
+      "disabled": "Disabled",
+      "seconds": "{{value}}s"
     }
   },
   "footer": {
@@ -640,7 +728,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Autorisations d'accessibilité requises",
-    "permissionsDescription": "Parler a besoin des autorisations d'accessibilité pour taper le texte transcrit.",
+    "permissionsDescription": "WhisperSM a besoin des autorisations d'accessibilité pour taper le texte transcrit.",
     "openSettings": "Ouvrir les Préférences Système",
     "dismiss": "Ignorer"
   },
@@ -657,15 +745,168 @@
     "noInputDevice": "Aucun périphérique d'entrée audio n'a été détecté. Veuillez connecter un microphone ou un casque et réessayer.",
     "recordingFailed": "Échec du démarrage de l'enregistrement : {{error}}",
     "modelLoadFailed": "Échec du chargement du modèle : {{model}}",
-    "modelLoadFailedUnknown": "modèle inconnu"
+    "modelLoadFailedUnknown": "modèle inconnu",
+    "postProcessFailed": "Échec du post-traitement IA"
   },
   "appLanguage": {
     "title": "Langue de l'application",
-    "description": "Changer la langue de l'interface de Parler"
+    "description": "Changer la langue de l'interface de WhisperSM"
   },
   "overlay": {
     "transcribing": "Transcription...",
     "processing": "Traitement...",
     "cancelConfirm": "Esc pour annuler"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "Prêt à dicter",
+      "title": "Parlez n'importe où. Le texte apparaît là où vous écrivez.",
+      "subtitleHold": "Maintenez le raccourci, parlez, relâchez. Vos mots sont transcrits sur cet ordinateur et collés dans l'application active.",
+      "subtitleToggle": "Appuyez sur le raccourci pour démarrer, appuyez à nouveau pour arrêter. Vos mots sont transcrits sur cet ordinateur et collés dans l'application active.",
+      "dictate": "Dicter",
+      "dictateWithAi": "Dicter avec le mode IA",
+      "changeShortcut": "Changer le raccourci",
+      "modesHint": "Pendant l'enregistrement, appuyez sur une touche numérique pour appliquer un mode à la transcription."
+    },
+    "status": {
+      "speechModel": "Modèle vocal",
+      "noSpeechModel": "Aucun modèle sélectionné",
+      "aiModel": "Post-traitement IA",
+      "onDevice": "Local"
+    },
+    "ai": {
+      "generating": "Génération…",
+      "loading": "Chargement du modèle…",
+      "loaded": "{{model}} chargé",
+      "ready": "{{count}} modèle(s) local(aux) prêt(s)",
+      "cloudOnly": "Modèles cloud configurés",
+      "none": "Ajouter un modèle IA"
+    },
+    "stats": {
+      "today": "Aujourd'hui",
+      "total": "Au total",
+      "words": "{{formatted}} mots",
+      "enhanced": "Améliorées par l'IA",
+      "enhancedHint": "transcriptions réécrites par un mode",
+      "lastUsed": "Dernière dictée",
+      "never": "Aucune dictée pour l'instant"
+    },
+    "modes": {
+      "title": "Modes",
+      "manage": "Gérer les modes",
+      "emptyTitle": "Créez votre premier mode",
+      "empty": "Les modes réécrivent votre transcription avec l'IA : nettoyage, e-mail, message, notes…",
+      "noModel": "Aucun modèle IA"
+    },
+    "recent": {
+      "title": "Transcriptions récentes",
+      "viewAll": "Voir l'historique",
+      "empty": "Vos transcriptions apparaîtront ici."
+    },
+    "microphone": {
+      "title": "Microphone"
+    }
+  },
+  "modes": {
+    "title": "Modes",
+    "description": "Un mode réécrit votre transcription avec un modèle IA : corriger la ponctuation, la transformer en e-mail, en message ou en notes. Déclenchez un mode avec son propre raccourci, ou appuyez sur sa touche numérique pendant l'enregistrement.",
+    "newMode": "Nouveau mode",
+    "emptyTitle": "Aucun mode pour l'instant",
+    "empty": "Créez un mode pour nettoyer ou reformater votre dictée avec l'IA.",
+    "hint": "Le premier mode est utilisé par le raccourci « Dicter avec le mode IA ». Modifiez un mode pour changer sa touche numérique ou son raccourci.",
+    "card": {
+      "default": "Par défaut",
+      "noModel": "Aucun modèle IA sélectionné"
+    },
+    "aiShortcut": {
+      "title": "Raccourci IA",
+      "description": "Un second raccourci global qui dicte et applique automatiquement votre mode par défaut."
+    },
+    "dialog": {
+      "newTitle": "Nouveau mode",
+      "editTitle": "Modifier le mode",
+      "subtitle": "Décrivez comment la transcription doit être réécrite et choisissez le modèle IA qui s'en charge.",
+      "onDevice": "Local",
+      "noModels": "Aucun modèle IA disponible. Téléchargez un modèle local ou ajoutez un fournisseur cloud.",
+      "addModel": "Ajouter un modèle"
+    }
+  },
+  "models": {
+    "title": "Modèles",
+    "tabs": {
+      "speech": "Voix",
+      "ai": "IA"
+    },
+    "speech": {
+      "description": "Les modèles de reconnaissance vocale fonctionnent entièrement hors ligne. Choisissez celui qui correspond à vos langues et à votre machine.",
+      "noneDownloaded": "Aucun modèle vocal téléchargé. Choisissez-en un ci-dessous."
+    },
+    "ai": {
+      "description": "Les modèles IA alimentent les modes. Les modèles locaux n'envoient jamais votre texte ; les fournisseurs cloud nécessitent une clé API.",
+      "localTitle": "Modèles locaux",
+      "localDescription": "S'exécutent dans WhisperSM. Aucun compte, aucun réseau, aucune donnée ne quitte votre ordinateur.",
+      "cloudTitle": "Fournisseurs cloud",
+      "cloudDescription": "Optionnel. Utilisez OpenAI, Anthropic, Groq et d'autres avec votre propre clé API.",
+      "loaded": "Chargé",
+      "multilingual": "Multilingue",
+      "englishFirst": "Anglais en priorité",
+      "ram": "{{gb}} Go de RAM",
+      "quality": "qualité",
+      "resumable": "· reprise possible",
+      "resume": "Reprendre",
+      "try": "Essayer",
+      "unload": "Décharger",
+      "tryTitle": "Essayer {{model}}",
+      "tryHint": "Exécutez un mode sur un texte d'exemple pour vérifier la vitesse et la qualité sur cette machine.",
+      "tryMode": "Mode",
+      "trySample": "euh en fait je pense qu'on devrait euh déplacer la réunion à jeudi quinze heures parce que mardi ça marche pas pour moi",
+      "run": "Lancer",
+      "running": "En cours…",
+      "elapsed": "{{seconds}} s",
+      "deleteConfirm": "Supprimer {{model}} de cet ordinateur ? Vous pourrez le retélécharger plus tard.",
+      "downloadComplete": "{{model}} est prêt à l'emploi.",
+      "downloadFailed": "Échec du téléchargement du modèle",
+      "loadFailed": "Impossible de charger {{model}}",
+      "privacyNote": "Les modèles sont téléchargés une seule fois depuis Hugging Face et stockés dans le dossier de données de l'application."
+    }
+  },
+  "settingsPage": {
+    "description": "Raccourcis, audio, sortie et comportement de l'application.",
+    "advancedDescription": "Fonctionnalités expérimentales et accélération matérielle.",
+    "debugHint": "Appuyez sur Ctrl/Cmd + Maj + D pour afficher la page de débogage. Un problème ?",
+    "reportIssue": "Signaler un problème",
+    "sections": {
+      "shortcuts": "Raccourcis",
+      "audio": "Audio",
+      "speech": "Voix",
+      "output": "Sortie",
+      "app": "Application",
+      "history": "Historique",
+      "advanced": "Avancé",
+      "data": "Données"
+    }
+  },
+  "history": {
+    "description": "Chaque dictée, avec son audio, le texte brut et le texte traité par l'IA."
+  },
+  "about": {
+    "tagline": "Reconnaissance vocale privée avec post-traitement IA local. Gratuit et open source.",
+    "releases": "Versions",
+    "reportIssue": "Signaler un problème",
+    "privacy": {
+      "title": "Confidentialité",
+      "localTitle": "Tout s'exécute sur votre ordinateur",
+      "localDescription": "L'audio, la transcription et l'IA locale ne quittent jamais cette machine. Les fournisseurs cloud ne sont utilisés que si vous en ajoutez un vous-même.",
+      "badge": "Hors ligne"
+    },
+    "credits": {
+      "description": "WhisperSM s'appuie sur ces projets.",
+      "handy": "L'application open source de reconnaissance vocale sur laquelle WhisperSM est construit.",
+      "parler": "Le fork de Melvynx qui a introduit les modes et le pipeline de post-traitement moderne.",
+      "whisper": "Inférence haute performance pour les modèles Whisper d'OpenAI.",
+      "candle": "Le moteur d'inférence Rust de Hugging Face utilisé pour les modèles de langage locaux.",
+      "models": "Modèles de langage à poids ouverts utilisés pour le post-traitement local."
+    },
+    "license": "Publié sous licence MIT."
   }
 }

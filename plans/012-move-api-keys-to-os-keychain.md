@@ -29,7 +29,7 @@ Credential Manager / Linux Secret Service) and replaces the on-disk/IPC value
 with a non-secret **masked sentinel**, while keeping the existing UI working with
 **no frontend changes**.
 
-> Credential handling: this plan references locations and the credential *type*
+> Credential handling: this plan references locations and the credential _type_
 > only — no key values appear anywhere. Any key that was previously written to a
 > settings file or an exported JSON should be treated as exposed and **rotated**
 > by the user; deletion from disk does not un-leak an already-committed/backed-up
@@ -93,15 +93,16 @@ with a non-secret **masked sentinel**, while keeping the existing UI working wit
 
 ## Commands you will need
 
-| Purpose    | Command                                   | Expected on success |
-|------------|-------------------------------------------|---------------------|
-| Rust build | `cd src-tauri && cargo check`             | exit 0              |
-| Rust tests | `cd src-tauri && cargo test`              | builds + passes (incl. new migration tests) |
-| Typecheck  | `bunx tsc --noEmit`                       | exit 0 (frontend unchanged) |
+| Purpose    | Command                       | Expected on success                         |
+| ---------- | ----------------------------- | ------------------------------------------- |
+| Rust build | `cd src-tauri && cargo check` | exit 0                                      |
+| Rust tests | `cd src-tauri && cargo test`  | builds + passes (incl. new migration tests) |
+| Typecheck  | `bunx tsc --noEmit`           | exit 0 (frontend unchanged)                 |
 
 ## Scope
 
 **In scope** (create/modify only these):
+
 - `src-tauri/Cargo.toml` — add the `keyring` dependency.
 - `src-tauri/src/secret_store.rs` (create) — keychain wrapper + mask constant.
 - `src-tauri/src/lib.rs` — register the new module.
@@ -112,6 +113,7 @@ with a non-secret **masked sentinel**, while keeping the existing UI working wit
 - `src-tauri/src/actions.rs` — `process_action` reads the key from keychain.
 
 **Out of scope** (do NOT touch):
+
 - The frontend. The masked-sentinel design keeps `ModelsSettings.tsx` working
   unchanged. Do NOT modify it.
 - `SecretMap`'s definition — keep it; it still usefully redacts `Debug` and now
@@ -294,6 +296,7 @@ same `updated |= ...` pattern.)
 Keychain I/O can't be unit-tested without the OS store, so test the **pure**
 pieces. Add a `#[cfg(test)]` module (in `secret_store.rs` for `is_mask`, and in
 `settings.rs` for the classification) covering:
+
 - `is_mask("")` → true; `is_mask("********")` → true; `is_mask("sk-real")` →
   false.
 - A small table-driven test of the "which entries need migration" decision: given
@@ -307,6 +310,7 @@ pieces. Add a `#[cfg(test)]` module (in `secret_store.rs` for `is_mask`, and in
 ### Step 7: Confirm the frontend is untouched and still type-checks
 
 **Verify**:
+
 - `git status` shows **no** changes under `src/`.
 - `bunx tsc --noEmit` → exit 0.
 

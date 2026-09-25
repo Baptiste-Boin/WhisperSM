@@ -19,7 +19,7 @@ on:
       asset-prefix:
         required: false
         type: string
-        default: "parler"
+        default: "whispersm"
       asset-name-pattern:
         required: false
         type: string
@@ -341,6 +341,18 @@ jobs:
             '.bundle.linux.deb.files["/usr/lib/libonnxruntime.so"] = $so | .bundle.linux.deb.files["/usr/lib/libonnxruntime.so.1"] = $so1 | .bundle.linux.deb.files["/usr/lib/libonnxruntime.so.1.24.2"] = $sov' \
             src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
 
+      # Updater artifacts need the private signing key. When the build is not
+      # signed (no TAURI_SIGNING_PRIVATE_KEY secret, e.g. PR/test builds) turn
+      # them off so the bundler does not fail.
+      - name: Configure unsigned build
+        id: unsigned
+        if: ${{ !inputs.sign-binaries }}
+        shell: bash
+        run: |
+          echo '{"bundle":{"createUpdaterArtifacts":false}}' > src-tauri/tauri.unsigned.conf.json
+          echo "extra_args=--config src-tauri/tauri.unsigned.conf.json" >> "$GITHUB_OUTPUT"
+          echo "Updater artifacts disabled for this unsigned build"
+
       - name: Build with Tauri
         if: inputs.apple_signing
         uses: tauri-apps/tauri-action@v0
@@ -365,7 +377,7 @@ jobs:
           releaseName: ${{ inputs.release-id && format('v{0}', steps.get-version.outputs.version) || '' }}
           releaseId: ${{ inputs.release-id }}
           assetNamePattern: ${{ steps.patch-release-name.outputs.platform }}
-          args: ${{ inputs.build-args }}
+          args: ${{ inputs.build-args }} ${{ steps.unsigned.outputs.extra_args }}
 
       - name: Build with Tauri
         if: ${{ !inputs.apple_signing }}
@@ -384,7 +396,7 @@ jobs:
           releaseName: ${{ inputs.release-id && format('v{0}', steps.get-version.outputs.version) || '' }}
           releaseId: ${{ inputs.release-id }}
           assetNamePattern: ${{ steps.patch-release-name.outputs.platform }}
-          args: ${{ inputs.build-args }}
+          args: ${{ inputs.build-args }} ${{ steps.unsigned.outputs.extra_args }}
 
       - name: Verify macOS dylib bundling
         if: inputs.target == 'x86_64-apple-darwin'

@@ -49,7 +49,7 @@ Verified facts (confirmed by grep at the planned-at commit):
   pub mod gemini;
   ```
 - `src-tauri/src/gemini_client.rs` (166 lines) defines `pub async fn
-  transcribe_audio(...)` and `pub async fn generate_text(...)`. It is **NOT**
+transcribe_audio(...)` and `pub async fn generate_text(...)`. It is **NOT**
   declared as a module anywhere — `src-tauri/src/lib.rs` lists modules
   (`mod actions; mod apple_intelligence; ... mod llm_client; ...`) and has **no**
   `mod gemini_client;`. The file is therefore not even compiled into the binary.
@@ -62,21 +62,23 @@ So: removing the two files plus the one `pub mod gemini;` line is safe.
 
 ## Commands you will need
 
-| Purpose      | Command                                              | Expected on success |
-|--------------|------------------------------------------------------|---------------------|
-| Rust build   | `cd src-tauri && cargo check`                        | exit 0, no errors   |
-| Grep check   | `grep -rn "gemini_client\|commands::gemini\|mod gemini" src-tauri/src` | only `settings.rs:599` style provider-id lines, no module/usage refs |
+| Purpose    | Command                                                                | Expected on success                                                  |
+| ---------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Rust build | `cd src-tauri && cargo check`                                          | exit 0, no errors                                                    |
+| Grep check | `grep -rn "gemini_client\|commands::gemini\|mod gemini" src-tauri/src` | only `settings.rs:599` style provider-id lines, no module/usage refs |
 
 (`cargo check` may take a few minutes the first time — that is normal.)
 
 ## Scope
 
 **In scope** (the only files you should modify or delete):
+
 - Delete `src-tauri/src/gemini_client.rs`
 - Delete `src-tauri/src/commands/gemini.rs`
 - Edit `src-tauri/src/commands/mod.rs` — remove the `pub mod gemini;` line
 
 **Out of scope** (do NOT touch, even though they mention "gemini"):
+
 - `src-tauri/src/settings.rs` — line 599's `"gemini"` provider id is a live
   config for the unified LLM client. Leave it exactly as is.
 - `src-tauri/src/llm_client.rs` — the replacement client; unaffected.
@@ -97,6 +99,7 @@ So: removing the two files plus the one `pub mod gemini;` line is safe.
 ### Step 1: Confirm the files are truly unreferenced
 
 Run:
+
 ```
 grep -rn "gemini_client" src-tauri/src
 grep -rn "commands::gemini\|crate::commands::gemini" src-tauri/src
@@ -117,9 +120,11 @@ git rm src-tauri/src/gemini_client.rs src-tauri/src/commands/gemini.rs
 ### Step 3: Remove the module declaration
 
 In `src-tauri/src/commands/mod.rs`, delete the line:
+
 ```rust
 pub mod gemini;
 ```
+
 The remaining `pub mod` lines (`audio`, `history`, `models`, `transcription`)
 stay.
 

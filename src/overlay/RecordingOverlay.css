@@ -5,9 +5,19 @@
   align-items: center;
   gap: 6px;
   padding: 0 12px;
-  background: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(20, 20, 28, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 17px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family:
+    "Geist",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   opacity: 0;
   transform: translateY(8px) scale(0.96);
   transition:
@@ -27,7 +37,11 @@
 }
 
 .recording-overlay.state-recording {
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(139, 124, 255, 0.55);
+}
+
+.recording-overlay.state-processing {
+  border-color: rgba(79, 157, 255, 0.55);
 }
 
 .overlay-left {
@@ -42,7 +56,7 @@
   position: absolute;
   inset: -4px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(139, 124, 255, 0.7);
   animation: record-pulse 1.8s ease-out infinite;
   pointer-events: none;
 }
@@ -81,7 +95,7 @@
 
 .bar {
   flex: 1;
-  background: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(180deg, #a49bff 0%, #6d9bff 100%);
   max-height: 22px;
   border-radius: 1.5px;
   min-height: 3px;
@@ -127,7 +141,7 @@
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  background: rgba(100, 140, 255, 0.85);
+  background: linear-gradient(135deg, #7c6bff 0%, #2e8bff 100%);
   color: #fff;
   font-size: 11px;
   font-weight: 700;

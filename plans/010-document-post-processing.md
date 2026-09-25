@@ -75,19 +75,20 @@ beyond them. Confirm each against the cited file before writing.
     is already a dependency and in use (`#[specta::specta]` throughout) — so the
     tauri-specta investigation is **done**; the settings refactor is still
     pending (see `settings.rs` size).
-  Use the grep results, not assumptions, to decide each item's status.
+    Use the grep results, not assumptions, to decide each item's status.
 
 ## Commands you will need
 
-| Purpose            | Command                               | Expected on success |
-|--------------------|---------------------------------------|---------------------|
-| Markdown format    | `bunx prettier --write README.md CLAUDE.md AGENTS.md` | exit 0 |
-| Format check       | `bunx prettier --check README.md CLAUDE.md AGENTS.md` | exit 0 |
-| Grep checks        | as listed in "Current state"          | informs roadmap edits |
+| Purpose         | Command                                               | Expected on success   |
+| --------------- | ----------------------------------------------------- | --------------------- |
+| Markdown format | `bunx prettier --write README.md CLAUDE.md AGENTS.md` | exit 0                |
+| Format check    | `bunx prettier --check README.md CLAUDE.md AGENTS.md` | exit 0                |
+| Grep checks     | as listed in "Current state"                          | informs roadmap edits |
 
 ## Scope
 
 **In scope** (modify only these):
+
 - `README.md` — add a "Post-Processing with Language Models" section; reconcile
   the "Roadmap & Active Development" section.
 - `CLAUDE.md` — add a "Post-Processing Architecture" subsection under the backend
@@ -96,6 +97,7 @@ beyond them. Confirm each against the cited file before writing.
   them consistent).
 
 **Out of scope** (do NOT touch):
+
 - Any source code. This is docs-only.
 - The "Verify Release Signatures", "Troubleshooting", "Manual Model Installation"
   README sections — unrelated and correct.
@@ -122,6 +124,7 @@ not document anything you could not confirm.
 Add a new top-level section to `README.md` (place it after "How It Works",
 before "Quick Start"), titled **"Post-Processing with Language Models"**. Cover,
 in plain user language, only the verified facts:
+
 - what post-processing does and how it's triggered (dedicated shortcut / actions);
 - supported provider types (OpenAI-compatible APIs incl. the named defaults; the
   user-editable Custom endpoint; Apple Intelligence on macOS Apple Silicon);
@@ -136,6 +139,7 @@ Keep it concise (a screen or so). Do not promise features that don't exist.
 
 In both `CLAUDE.md` and `AGENTS.md`, under the backend architecture description,
 add a **"Post-Processing Architecture"** subsection mapping the moving parts:
+
 - `actions.rs` — `ShortcutAction` trait, `TranscribeAction` (`post_process`
   flag), action resolution, `process_transcription_output`.
 - `llm_client.rs` — OpenAI-compatible client (`/chat/completions`, `/models`),
@@ -145,13 +149,14 @@ add a **"Post-Processing Architecture"** subsection mapping the moving parts:
   `PostProcessAction` / `post_process_api_keys`.
 - frontend: `PostProcessingSettings.tsx`, `ModelsSettings.tsx`, and the
   `change_post_process_*` commands.
-Keep CLAUDE.md and AGENTS.md consistent (same content, matching each file's
-style).
+  Keep CLAUDE.md and AGENTS.md consistent (same content, matching each file's
+  style).
 
 ### Step 4: Reconcile the README roadmap
 
 Edit the "Roadmap & Active Development" section based on the verified statuses
 from Step 1:
+
 - Move items confirmed **implemented** (file logging; tauri-specta) out of "In
   Progress" — either delete or move to a brief "Recently shipped" note.
 - For items confirmed **not implemented** (Globe key, analytics, if greps return
@@ -159,7 +164,7 @@ from Step 1:
   rather than "In Progress".
 - Keep "Settings refactoring" as a genuine pending item if `settings.rs` is still
   the large single module (it is at this commit).
-Do not invent new roadmap items.
+  Do not invent new roadmap items.
 
 ### Step 5: Format
 

@@ -872,11 +872,77 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
     else return { status: "error", error: e  as any };
 }
 },
+async getHistoryStats() : Promise<Result<HistoryStats, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_history_stats") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getLocalLlmModels() : Promise<Result<LocalLlmModelInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_models") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async downloadLocalLlmModel(modelId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cancelLocalLlmDownload(modelId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_local_llm_download", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteLocalLlmModel(modelId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getLocalLlmStatus() : Promise<Result<LocalLlmStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async unloadLocalLlm() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("unload_local_llm") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
- * Checks if the Mac is a laptop by detecting battery presence
- * 
- * This uses pmset to check for battery information.
- * Returns true if a battery is detected (laptop), false otherwise (desktop)
+ * Run a prompt through a downloaded local model. Used by the "Try it"
+ * panel so users can check a model before assigning it to a mode.
+ */
+async testLocalLlm(modelId: string, prompt: string, text: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_local_llm", { modelId, prompt, text }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Stub implementation for non-macOS platforms
+ * Always returns false since laptop detection is macOS-specific
  */
 async isLaptop() : Promise<Result<boolean, string>> {
     try {
@@ -913,6 +979,10 @@ export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = "Whisper" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary"
 export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number }
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean }
+/**
+ * Aggregate numbers shown on the Home screen.
+ */
+export type HistoryStats = { total_entries: number; total_words: number; entries_today: number; words_today: number; post_processed_entries: number; last_timestamp: number | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -929,6 +999,48 @@ export type KeyboardImplementation = "tauri" | "handy_keys"
  */
 export type LLMModel = { id: string; provider_id: string; model: string; label: string }
 export type LLMPrompt = { id: string; name: string; prompt: string }
+/**
+ * Model architecture, used to pick the right candle implementation and
+ * chat template.
+ */
+export type LocalLlmArch = "qwen_2" | "llama"
+export type LocalLlmModelInfo = { id: string; name: string; description: string; 
+/**
+ * Model family shown as a badge (e.g. "Qwen 2.5").
+ */
+family: string; 
+/**
+ * Parameter count label (e.g. "1.5B").
+ */
+parameters: string; 
+/**
+ * Quantization label (e.g. "Q4_K_M").
+ */
+quantization: string; arch: LocalLlmArch; model_url: string; tokenizer_url: string; 
+/**
+ * Approximate download size in megabytes (model + tokenizer).
+ */
+size_mb: number; 
+/**
+ * Recommended minimum RAM in gigabytes.
+ */
+min_ram_gb: number; 
+/**
+ * 0.0 - 1.0, higher is better output quality.
+ */
+quality_score: number; 
+/**
+ * 0.0 - 1.0, higher is faster.
+ */
+speed_score: number; 
+/**
+ * Whether the model handles languages other than English well.
+ */
+multilingual: boolean; is_recommended: boolean; is_downloaded: boolean; is_downloading: boolean; partial_size: number }
+/**
+ * Snapshot of the runtime state returned to the UI.
+ */
+export type LocalLlmStatus = { loaded_model_id: string | null; is_loading: boolean; is_generating: boolean; device: string }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; url: string | null; sha256: string | null; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }

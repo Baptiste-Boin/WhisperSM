@@ -71,22 +71,23 @@ export const StartHidden: React.FC<StartHiddenProps> = React.memo(
 The **eleven components in scope**, with their setting key, label key,
 description key, default, and any extra `ToggleSwitch` prop:
 
-| Component file | setting key | label key | description key | default | extra prop |
-|---|---|---|---|---|---|
-| `StartHidden.tsx` | `start_hidden` | `settings.advanced.startHidden.label` | `...startHidden.description` | `false` | `tooltipPosition="bottom"` |
-| `ShowTrayIcon.tsx` | `show_tray_icon` | `settings.advanced.showTrayIcon.label` | `...showTrayIcon.description` | `true` | `tooltipPosition="bottom"` |
-| `AlwaysOnMicrophone.tsx` | `always_on_microphone` | `settings.debug.alwaysOnMicrophone.label` | `...alwaysOnMicrophone.description` | `false` | — |
-| `AppendTrailingSpace.tsx` | `append_trailing_space` | `settings.debug.appendTrailingSpace.label` | `...appendTrailingSpace.description` | `false` | — |
-| `AutostartToggle.tsx` | `autostart_enabled` | `settings.advanced.autostart.label` | `...autostart.description` | `false` | — |
-| `ExperimentalToggle.tsx` | `experimental_enabled` | `settings.advanced.experimentalToggle.label` | `...experimentalToggle.description` | `false` | — |
-| `LazyStreamClose.tsx` | `lazy_stream_close` | `settings.advanced.lazyStreamClose.label` | `...lazyStreamClose.description` | `false` | — |
-| `MuteWhileRecording.tsx` | `mute_while_recording` | `settings.debug.muteWhileRecording.label` | `...muteWhileRecording.description` | `false` | — |
-| `PushToTalk.tsx` | `push_to_talk` | `settings.general.pushToTalk.label` | `...pushToTalk.description` | `false` | — |
-| `TranslateToEnglish.tsx` | `translate_to_english` | `settings.advanced.translateToEnglish.label` | `...translateToEnglish.description` | `false` | — |
-| `UpdateChecksToggle.tsx` | `update_checks_enabled` | `settings.debug.updateChecks.label` | `...updateChecks.description` | `true` | — |
+| Component file            | setting key             | label key                                    | description key                      | default | extra prop                 |
+| ------------------------- | ----------------------- | -------------------------------------------- | ------------------------------------ | ------- | -------------------------- |
+| `StartHidden.tsx`         | `start_hidden`          | `settings.advanced.startHidden.label`        | `...startHidden.description`         | `false` | `tooltipPosition="bottom"` |
+| `ShowTrayIcon.tsx`        | `show_tray_icon`        | `settings.advanced.showTrayIcon.label`       | `...showTrayIcon.description`        | `true`  | `tooltipPosition="bottom"` |
+| `AlwaysOnMicrophone.tsx`  | `always_on_microphone`  | `settings.debug.alwaysOnMicrophone.label`    | `...alwaysOnMicrophone.description`  | `false` | —                          |
+| `AppendTrailingSpace.tsx` | `append_trailing_space` | `settings.debug.appendTrailingSpace.label`   | `...appendTrailingSpace.description` | `false` | —                          |
+| `AutostartToggle.tsx`     | `autostart_enabled`     | `settings.advanced.autostart.label`          | `...autostart.description`           | `false` | —                          |
+| `ExperimentalToggle.tsx`  | `experimental_enabled`  | `settings.advanced.experimentalToggle.label` | `...experimentalToggle.description`  | `false` | —                          |
+| `LazyStreamClose.tsx`     | `lazy_stream_close`     | `settings.advanced.lazyStreamClose.label`    | `...lazyStreamClose.description`     | `false` | —                          |
+| `MuteWhileRecording.tsx`  | `mute_while_recording`  | `settings.debug.muteWhileRecording.label`    | `...muteWhileRecording.description`  | `false` | —                          |
+| `PushToTalk.tsx`          | `push_to_talk`          | `settings.general.pushToTalk.label`          | `...pushToTalk.description`          | `false` | —                          |
+| `TranslateToEnglish.tsx`  | `translate_to_english`  | `settings.advanced.translateToEnglish.label` | `...translateToEnglish.description`  | `false` | —                          |
+| `UpdateChecksToggle.tsx`  | `update_checks_enabled` | `settings.debug.updateChecks.label`          | `...updateChecks.description`        | `true`  | —                          |
 
 **Excluded — do NOT migrate** (it is not a pure toggle; it also renders a
 `VolumeSlider` and `SoundPicker`):
+
 - `src/components/settings/AudioFeedback.tsx`
 
 `ToggleSwitch` lives at `src/components/ui/ToggleSwitch.tsx`. The props used
@@ -96,25 +97,27 @@ do not change `ToggleSwitch`.
 
 ## Commands you will need
 
-| Purpose   | Command               | Expected on success |
-|-----------|-----------------------|---------------------|
-| Typecheck | `bunx tsc --noEmit`   | exit 0, no errors   |
-| Lint      | `bun run lint`        | exit 0              |
+| Purpose   | Command             | Expected on success |
+| --------- | ------------------- | ------------------- |
+| Typecheck | `bunx tsc --noEmit` | exit 0, no errors   |
+| Lint      | `bun run lint`      | exit 0              |
 
 (If plan 001 has landed, `bun run typecheck` is equivalent to `bunx tsc --noEmit`.)
 
 ## Scope
 
 **In scope** (modify/create only these):
+
 - Create `src/components/settings/ToggleSetting.tsx`
 - Edit the **eleven** component files listed in the table above (rewrite each to
   delegate to `ToggleSetting`, keeping the same exported component name and
   props).
 
 **Out of scope** (do NOT touch):
+
 - `src/components/settings/AudioFeedback.tsx` (excluded above).
 - `src/components/ui/ToggleSwitch.tsx` — reused as-is.
-- Any settings *page* that renders these components (e.g.
+- Any settings _page_ that renders these components (e.g.
   `general/GeneralSettings.tsx`, `advanced/AdvancedSettings.tsx`,
   `debug/DebugSettings.tsx`). Because each component keeps its name, exported
   symbol, and prop signature, the call sites must not need changes.
@@ -238,6 +241,7 @@ mistake is localized.
 ### Step 3: Lint and full typecheck
 
 **Verify**:
+
 - `bunx tsc --noEmit` → exit 0.
 - `bun run lint` → exit 0 (no unused-import or i18n-literal errors).
 
@@ -264,7 +268,7 @@ Machine-checkable. ALL must hold:
 - [ ] `src/components/settings/AudioFeedback.tsx` is unchanged (`git status`).
 - [ ] `bunx tsc --noEmit` exits 0.
 - [ ] `bun run lint` exits 0.
-- [ ] No settings *page* file or barrel export was modified (`git status` shows
+- [ ] No settings _page_ file or barrel export was modified (`git status` shows
       only `ToggleSetting.tsx` + the eleven component files).
 - [ ] `plans/README.md` status row for plan 006 updated.
 

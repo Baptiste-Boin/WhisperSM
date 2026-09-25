@@ -59,16 +59,18 @@ unblocker.
 
 ## Commands you will need
 
-| Purpose   | Command                  | Expected on success |
-|-----------|--------------------------|---------------------|
-| Typecheck | `bun run typecheck`      | exit 0, no errors   |
+| Purpose   | Command             | Expected on success |
+| --------- | ------------------- | ------------------- |
+| Typecheck | `bun run typecheck` | exit 0, no errors   |
 
 ## Scope
 
 **In scope** (the only files you should modify):
+
 - `package.json` (root)
 
 **Out of scope** (do NOT touch):
+
 - `tsconfig.json` — do not change compiler options; the script must reuse the
   existing config as-is.
 - Any CI workflow file — wiring `typecheck` into CI is deliberately deferred.

@@ -1094,6 +1094,17 @@ pub async fn fetch_post_process_models(
         }
     }
 
+    if provider.id == crate::local_llm::LOCAL_LLM_PROVIDER_ID {
+        let manager =
+            tauri::Manager::state::<std::sync::Arc<crate::local_llm::LocalLlmManager>>(&app);
+        return Ok(manager
+            .list()
+            .into_iter()
+            .filter(|m| m.is_downloaded)
+            .map(|m| m.id)
+            .collect());
+    }
+
     // Get API key
     let api_key = settings
         .post_process_api_keys

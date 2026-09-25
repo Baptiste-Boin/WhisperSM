@@ -1,6 +1,6 @@
 use crate::actions::{process_transcription_output, run_post_process_action};
 use crate::managers::{
-    history::{HistoryEntry, HistoryManager, PaginatedHistory},
+    history::{HistoryEntry, HistoryManager, HistoryStats, PaginatedHistory},
     transcription::TranscriptionManager,
 };
 use std::sync::Arc;
@@ -32,7 +32,7 @@ pub async fn apply_action_to_history_entry(
         .cloned()
         .ok_or_else(|| format!("Action '{}' not found", action_id))?;
 
-    let processed = run_post_process_action(&settings, &entry.transcription_text, &action)
+    let processed = run_post_process_action(&app, &settings, &entry.transcription_text, &action)
         .await
         .ok_or_else(|| {
             "Post-processing failed. Check the action's model configuration and API key."
@@ -61,6 +61,14 @@ pub async fn get_history_entries(
         .get_history_entries(cursor, limit)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_history_stats(
+    history_manager: State<'_, Arc<HistoryManager>>,
+) -> Result<HistoryStats, String> {
+    history_manager.get_stats().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

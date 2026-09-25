@@ -98,12 +98,12 @@ existing `errors` group (see `errors.recordingFailed`, `errors.modelLoadFailed`)
 
 ## Commands you will need
 
-| Purpose            | Command                                | Expected on success |
-|--------------------|----------------------------------------|---------------------|
-| Rust build         | `cd src-tauri && cargo check`          | exit 0              |
-| Typecheck          | `bunx tsc --noEmit`                    | exit 0              |
-| Lint               | `bun run lint`                         | exit 0              |
-| Translation check  | `bun scripts/check-translations.ts`    | run; see note below |
+| Purpose           | Command                             | Expected on success |
+| ----------------- | ----------------------------------- | ------------------- |
+| Rust build        | `cd src-tauri && cargo check`       | exit 0              |
+| Typecheck         | `bunx tsc --noEmit`                 | exit 0              |
+| Lint              | `bun run lint`                      | exit 0              |
+| Translation check | `bun scripts/check-translations.ts` | run; see note below |
 
 Note on translations: adding a key only to `en` will make
 `check-translations.ts` report it missing in other locales. That is expected;
@@ -114,6 +114,7 @@ not landed — see Step 4.
 ## Scope
 
 **In scope** (modify only these):
+
 - `src-tauri/src/actions.rs` — add a `PostProcessErrorEvent` struct and emit it
   at the `None` arm.
 - `src/lib/types/events.ts` — add the matching TS interface.
@@ -122,6 +123,7 @@ not landed — see Step 4.
   19 locale files if doing (b) above.
 
 **Out of scope** (do NOT touch):
+
 - `run_post_process_action` / `process_action` signatures in `actions.rs` — do
   NOT thread an `AppHandle` into them. Emit from the `stop` async task where `ah`
   is already in scope. This keeps the change localized and avoids reshaping the
@@ -184,14 +186,11 @@ scope via the existing `use tauri::{AppHandle, Emitter};`.)
   on the `recording-error` one (lines 118–143):
   ```tsx
   useEffect(() => {
-    const unlisten = listen<PostProcessErrorEvent>(
-      "post-process-error",
-      () => {
-        toast.error(t("errors.postProcessFailedTitle"), {
-          description: t("errors.postProcessFailed"),
-        });
-      },
-    );
+    const unlisten = listen<PostProcessErrorEvent>("post-process-error", () => {
+      toast.error(t("errors.postProcessFailedTitle"), {
+        description: t("errors.postProcessFailed"),
+      });
+    });
     return () => {
       unlisten.then((fn) => fn());
     };
@@ -218,6 +217,7 @@ green. If plan 007 has landed or is being run after this, you may add only to
 report.
 
 **Verify**:
+
 - `bun run lint` → exit 0 (no hardcoded-string or unused-import errors).
 - `bun scripts/check-translations.ts` → passes if you chose to add to all locales;
   if you added only to `en`, it will report these 2 keys missing elsewhere — note

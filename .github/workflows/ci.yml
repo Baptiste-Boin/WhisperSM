@@ -1,0 +1,81 @@
+name: "CI"
+
+# Fast checks that run on every pull request and on pushes to main:
+# frontend lint/format/types/build, translation consistency, and Rust
+# tests (with the mock transcription engine so no GPU toolchain is needed).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check translation consistency
+        run: bun run check:translations
+
+      - name: ESLint
+        run: bun run lint
+
+      - name: Prettier
+        run: bun run format:check:frontend
+
+      - name: TypeScript
+        run: bun run typecheck
+
+      - name: Build
+        run: bun run build
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libasound2-dev libssl-dev libgtk-layer-shell-dev libxdo-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: cargo fmt
+        working-directory: src-tauri
+        run: cargo fmt -- --check
+
+      - name: Use mock transcription engine (CI only)
+        working-directory: src-tauri
+        run: |
+          # Avoids compiling whisper.cpp / ONNX Runtime on the CI runner.
+          cp src/managers/transcription_mock.rs src/managers/transcription.rs
+          sed -i '/^transcribe-rs/d' Cargo.toml
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -A clippy::all -D clippy::correctness

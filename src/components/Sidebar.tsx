@@ -1,41 +1,41 @@
-import React, { lazy } from "react";
+import React, { lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Cog, FlaskConical, History, Info, Sparkles, Cpu } from "lucide-react";
-import ParlerTextLogo from "./icons/ParlerTextLogo";
-import HandyHand from "./icons/HandyHand";
+import { getVersion } from "@tauri-apps/api/app";
+import {
+  Boxes,
+  FlaskConical,
+  History,
+  House,
+  Info,
+  Settings2,
+  Sparkles,
+} from "lucide-react";
+import WhisperSMLogo from "./icons/WhisperSMLogo";
 import { useSettings } from "../hooks/useSettings";
-import { GeneralSettings } from "./settings";
+import { HomePage } from "../pages/HomePage";
+import ModelSelector from "./model-selector";
+import UpdateChecker from "./update-checker";
 
-// GeneralSettings stays eager since it is the section shown on launch; the
-// rest load on demand so their code is not parsed at startup.
-const AdvancedSettings = lazy(() =>
-  import("./settings/advanced/AdvancedSettings").then((m) => ({
-    default: m.AdvancedSettings,
-  })),
+// The Home page is eager since it is shown on launch; the rest load on
+// demand so their code is not parsed at startup.
+const ModesPage = lazy(() =>
+  import("../pages/ModesPage").then((m) => ({ default: m.ModesPage })),
 );
-const HistorySettings = lazy(() =>
-  import("./settings/history/HistorySettings").then((m) => ({
-    default: m.HistorySettings,
-  })),
+const ModelsPage = lazy(() =>
+  import("../pages/ModelsPage").then((m) => ({ default: m.ModelsPage })),
+);
+const HistoryPage = lazy(() =>
+  import("../pages/HistoryPage").then((m) => ({ default: m.HistoryPage })),
+);
+const SettingsPage = lazy(() =>
+  import("../pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const AboutPage = lazy(() =>
+  import("../pages/AboutPage").then((m) => ({ default: m.AboutPage })),
 );
 const DebugSettings = lazy(() =>
   import("./settings/debug/DebugSettings").then((m) => ({
     default: m.DebugSettings,
-  })),
-);
-const AboutSettings = lazy(() =>
-  import("./settings/about/AboutSettings").then((m) => ({
-    default: m.AboutSettings,
-  })),
-);
-const PostProcessingSettings = lazy(() =>
-  import("./settings/post-processing/PostProcessingSettings").then((m) => ({
-    default: m.PostProcessingSettings,
-  })),
-);
-const ModelsSettings = lazy(() =>
-  import("./settings/models/ModelsSettings").then((m) => ({
-    default: m.ModelsSettings,
   })),
 );
 
@@ -57,34 +57,34 @@ interface SectionConfig {
 }
 
 export const SECTIONS_CONFIG = {
-  general: {
-    labelKey: "sidebar.general",
-    icon: HandyHand,
-    component: GeneralSettings,
+  home: {
+    labelKey: "sidebar.home",
+    icon: House,
+    component: HomePage,
+    enabled: () => true,
+  },
+  modes: {
+    labelKey: "sidebar.modes",
+    icon: Sparkles,
+    component: ModesPage,
     enabled: () => true,
   },
   models: {
     labelKey: "sidebar.models",
-    icon: Cpu,
-    component: ModelsSettings,
-    enabled: () => true,
-  },
-  advanced: {
-    labelKey: "sidebar.advanced",
-    icon: Cog,
-    component: AdvancedSettings,
+    icon: Boxes,
+    component: ModelsPage,
     enabled: () => true,
   },
   history: {
     labelKey: "sidebar.history",
     icon: History,
-    component: HistorySettings,
+    component: HistoryPage,
     enabled: () => true,
   },
-  postprocessing: {
-    labelKey: "sidebar.postProcessing",
-    icon: Sparkles,
-    component: PostProcessingSettings,
+  settings: {
+    labelKey: "sidebar.settings",
+    icon: Settings2,
+    component: SettingsPage,
     enabled: () => true,
   },
   debug: {
@@ -96,10 +96,17 @@ export const SECTIONS_CONFIG = {
   about: {
     labelKey: "sidebar.about",
     icon: Info,
-    component: AboutSettings,
+    component: AboutPage,
     enabled: () => true,
   },
 } as const satisfies Record<string, SectionConfig>;
+
+/** Map legacy section ids (emitted by the backend or old links) to new ones. */
+export const LEGACY_SECTION_ALIASES: Record<string, SidebarSection> = {
+  general: "settings",
+  advanced: "settings",
+  postprocessing: "modes",
+};
 
 interface SidebarProps {
   activeSection: SidebarSection;
@@ -112,40 +119,70 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const [version, setVersion] = useState("");
+  const versionLabel = version ? `v${version}` : "";
+
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch(() => setVersion(""));
+  }, []);
 
   const availableSections = Object.entries(SECTIONS_CONFIG)
     .filter(([_, config]) => config.enabled(settings))
     .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-e border-mid-gray/20 items-center px-2">
-      <ParlerTextLogo width={120} className="m-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
+    <aside className="flex flex-col w-[212px] shrink-0 h-full bg-sidebar border-e border-border">
+      <div className="px-4 pt-5 pb-4">
+        <WhisperSMLogo size={28} />
+      </div>
+
+      <nav className="flex flex-col gap-0.5 px-2.5 flex-1 overflow-y-auto">
         {availableSections.map((section) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;
-
           return (
-            <div
+            <button
               key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
-                isActive
-                  ? "bg-logo-primary/80"
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              }`}
+              type="button"
               onClick={() => onSectionChange(section.id)}
+              className={`group flex items-center gap-2.5 px-2.5 h-9 w-full rounded-lg text-sm font-medium transition-colors text-start ${
+                isActive
+                  ? "bg-surface text-text shadow-[0_1px_2px_rgba(15,15,30,0.06)] border border-border"
+                  : "text-text-muted hover:text-text hover:bg-surface/60 border border-transparent"
+              }`}
+              title={t(section.labelKey)}
             >
-              <Icon width={24} height={24} className="shrink-0" />
-              <p
-                className="text-sm font-medium truncate"
-                title={t(section.labelKey)}
-              >
-                {t(section.labelKey)}
-              </p>
-            </div>
+              <Icon
+                width={17}
+                height={17}
+                className={`shrink-0 ${isActive ? "text-accent" : "text-text-muted group-hover:text-text"}`}
+              />
+              <span className="truncate">{t(section.labelKey)}</span>
+            </button>
           );
         })}
+      </nav>
+
+      <div className="px-3 pb-3 pt-2 space-y-2 border-t border-border">
+        <div className="wsm-card px-3 py-2 text-xs">
+          <p className="text-[10px] uppercase tracking-wide font-semibold text-text-muted mb-1">
+            {t("sidebar.speechModel")}
+          </p>
+          <div className="text-text">
+            <ModelSelector />
+          </div>
+        </div>
+        <div className="flex flex-col gap-0.5 px-1 text-[11px] text-text-muted">
+          <div className="truncate">
+            <UpdateChecker />
+          </div>
+          {versionLabel && (
+            <span className="tabular-nums font-mono">{versionLabel}</span>
+          )}
+        </div>
       </div>
-    </div>
+    </aside>
   );
 };

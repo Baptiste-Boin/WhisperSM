@@ -85,17 +85,19 @@ fn type_text_via_dotool(text: &str) -> Result<(), String> {
 
 ## Commands you will need
 
-| Purpose    | Command                                  | Expected on success |
-|------------|------------------------------------------|---------------------|
-| Rust build | `cd src-tauri && cargo check`            | exit 0              |
-| Rust tests | `cd src-tauri && cargo test clipboard`   | build + pass (incl. new tests) |
+| Purpose    | Command                                | Expected on success            |
+| ---------- | -------------------------------------- | ------------------------------ |
+| Rust build | `cd src-tauri && cargo check`          | exit 0                         |
+| Rust tests | `cd src-tauri && cargo test clipboard` | build + pass (incl. new tests) |
 
 ## Scope
 
 **In scope** (the only file you should modify):
+
 - `src-tauri/src/clipboard.rs`
 
 **Out of scope** (do NOT touch):
+
 - `type_text_via_xdotool` and `type_text_via_ydotool` — already safe.
 - The clipboard restore logic and any other function in the file.
 

@@ -302,9 +302,11 @@ const RecordingOverlay: React.FC = () => {
         )}
       </div>
 
-      {selectedAction && selectedAction.key != null && state === "recording" && (
-        <div className="action-badge">{selectedAction.key}</div>
-      )}
+      {selectedAction &&
+        selectedAction.key != null &&
+        state === "recording" && (
+          <div className="action-badge">{selectedAction.key}</div>
+        )}
 
       <div className="overlay-middle">
         {state === "recording" && !cancelPending && (

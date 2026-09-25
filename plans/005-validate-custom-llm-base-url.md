@@ -86,18 +86,20 @@ pub fn change_post_process_base_url_setting(
 
 ## Commands you will need
 
-| Purpose    | Command                                   | Expected on success |
-|------------|-------------------------------------------|---------------------|
-| Rust build | `cd src-tauri && cargo check`             | exit 0              |
-| Rust tests | `cd src-tauri && cargo test base_url`     | build + pass        |
+| Purpose    | Command                               | Expected on success |
+| ---------- | ------------------------------------- | ------------------- |
+| Rust build | `cd src-tauri && cargo check`         | exit 0              |
+| Rust tests | `cd src-tauri && cargo test base_url` | build + pass        |
 
 ## Scope
 
 **In scope** (the only file you should modify):
+
 - `src-tauri/src/shortcut/mod.rs` — add validation in
   `change_post_process_base_url_setting` plus a pure validator helper + tests.
 
 **Out of scope** (do NOT touch):
+
 - `src-tauri/src/llm_client.rs` — do not change the URL concatenation; validating
   on write is sufficient and keeps the blast radius small.
 - The default provider definitions in `settings.rs` — the localhost HTTP default

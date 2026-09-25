@@ -22,7 +22,7 @@ These keys exist only in the English reference. Two concrete costs:
    real future regressions hide in the existing noise.
 2. For every non-English user, those ~36 strings are untranslated. (They render
    as English at runtime because `src/i18n/index.ts` sets `fallbackLng: "en"`, so
-   the UI is not *broken* — but features like the Long Audio Model settings show
+   the UI is not _broken_ — but features like the Long Audio Model settings show
    only in English regardless of the chosen language.)
 
 Backfilling the keys makes the check pass (restoring it as a gate) and makes the
@@ -58,7 +58,8 @@ untranslated strings explicit so translators can fill them in.
 "settings.general.shortcut.bindings.show_history.name": "Show History",
 "settings.models.tabs": { "transcription": "Transcription", "processing": "Processing" }
 ```
-  (…and ~26 more, all reported by the check script.)
+
+(…and ~26 more, all reported by the check script.)
 
 - `scripts/check-translations.ts` compares **nested** key paths: the reference is
   walked recursively (`getAllKeyPaths`), and each locale is checked with
@@ -71,17 +72,19 @@ untranslated strings explicit so translators can fill them in.
 
 ## Commands you will need
 
-| Purpose            | Command                                | Expected on success |
-|--------------------|----------------------------------------|---------------------|
-| Translation check  | `bun scripts/check-translations.ts`    | `✓ All 19 languages have complete translations!`, exit 0 |
-| JSON sanity        | `bunx prettier --check "src/i18n/locales/**/*.json"` | exit 0 (after formatting in Step 3) |
+| Purpose           | Command                                              | Expected on success                                      |
+| ----------------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| Translation check | `bun scripts/check-translations.ts`                  | `✓ All 19 languages have complete translations!`, exit 0 |
+| JSON sanity       | `bunx prettier --check "src/i18n/locales/**/*.json"` | exit 0 (after formatting in Step 3)                      |
 
 ## Scope
 
 **In scope** (modify only these):
+
 - The 19 non-English `src/i18n/locales/<lang>/translation.json` files.
 
 **Out of scope** (do NOT touch):
+
 - `src/i18n/locales/en/translation.json` — it is the complete reference; changing
   it changes the contract for every locale.
 - `scripts/check-translations.ts` — do not weaken or modify the checker.
@@ -169,13 +172,14 @@ complete translations!`, exit 0.
   this just removes it from the working tree).
 
 **Verify**:
+
 - `git status` shows changes only under `src/i18n/locales/` (19 files) and **no**
   leftover `_sync-translations.tmp.ts`.
 - `bun scripts/check-translations.ts` → still passes (exit 0).
 
 ## Test plan
 
-- The check script *is* the test: `bun scripts/check-translations.ts` must report
+- The check script _is_ the test: `bun scripts/check-translations.ts` must report
   19/19 passing.
 - Spot-check two locale files (e.g. `fr` and `ja`) to confirm the new keys landed
   at the correct nesting (e.g. a real `settings.longAudioModel.title` object path,

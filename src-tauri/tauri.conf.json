@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Parler",
+  "productName": "WhisperSM",
   "version": "0.9.1",
-  "identifier": "com.melvynx.parler",
+  "identifier": "com.baptisteboin.whispersm",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -39,31 +39,99 @@
     "macOS": {
       "files": {},
       "hardenedRuntime": true,
-      "minimumSystemVersion": "10.15",
+      "minimumSystemVersion": "11.0",
       "signingIdentity": "-",
-      "entitlements": "Entitlements.plist"
+      "entitlements": "Entitlements.plist",
+      "dmg": {
+        "background": "installer/dmg-background.png",
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 235
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 235
+        }
+      }
     },
     "linux": {
       "deb": {
-        "depends": ["libgtk-layer-shell0"]
+        "depends": ["libgtk-layer-shell0"],
+        "section": "utils",
+        "priority": "optional"
       },
       "rpm": {
         "compression": {
           "type": "none"
-        }
+        },
+        "depends": ["gtk-layer-shell"]
       },
       "appimage": {
         "bundleMediaFramework": true,
         "files": {}
       }
     },
-    "windows": {}
+    "windows": {
+      "allowDowngrades": true,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "both",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/nsis-header.bmp",
+        "sidebarImage": "installer/nsis-sidebar.bmp",
+        "languages": [
+          "English",
+          "French",
+          "German",
+          "Spanish",
+          "Italian",
+          "Portuguese",
+          "Japanese",
+          "Korean",
+          "SimpChinese",
+          "TradChinese",
+          "Russian",
+          "Polish",
+          "Dutch"
+        ],
+        "displayLanguageSelector": true,
+        "startMenuFolder": "WhisperSM",
+        "compression": "lzma"
+      },
+      "wix": {
+        "language": [
+          "en-US",
+          "fr-FR",
+          "de-DE",
+          "es-ES",
+          "it-IT",
+          "ja-JP",
+          "zh-CN"
+        ],
+        "bannerPath": "installer/wix-banner.bmp",
+        "dialogImagePath": "installer/wix-dialog.bmp"
+      }
+    },
+    "publisher": "Baptiste Boin",
+    "homepage": "https://github.com/Baptiste-Boin/WhisperSM",
+    "category": "Productivity",
+    "shortDescription": "Private speech to text with on-device AI",
+    "longDescription": "WhisperSM turns your voice into text in any application with a single shortcut. Transcription and AI post-processing (clean up, email, message, notes) run entirely on your computer.",
+    "copyright": "Copyright © 2026 Baptiste Boin. MIT License.",
+    "licenseFile": "../LICENSE"
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVCRTczMDVDRkI2NjU4ODYKUldTR1dHYjdYRERuVytTUFRCMXYvaXhVdUpzMitvRDl4M0xRdTUwSWtnb1VBbFJZSG9oZVRGcSsK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNFMEY0MzVDODUwRUEwQTEKUldTaG9BNkZYRU1QUG92NlprZTJ0VDdkZzVieFFwNTdiOVYvSVhrNXptZjU3eCtTWlA0OEdTZC8K",
       "endpoints": [
-        "https://github.com/Melvynx/Parler/releases/latest/download/latest.json"
+        "https://github.com/Baptiste-Boin/WhisperSM/releases/latest/download/latest.json"
       ]
     }
   }
