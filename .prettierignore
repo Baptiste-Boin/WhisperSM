@@ -18,3 +18,10 @@ src/bindings.ts
 # Misc
 .DS_Store
 *.log
+
+# Separate project with its own tooling
+web-app
+
+# Generated screenshots / installer artwork
+docs/screenshots
+src-tauri/installer

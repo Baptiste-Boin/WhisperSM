@@ -1,23 +1,37 @@
 name: "Main Branch Build"
 
-# Runs macOS builds on every push to main so breakage is caught before a
-# manual release is triggered. macOS is the only platform we support at 100%
-# right now; other targets are available via the build-test workflow.
-# Artifacts are kept for 30 days so any commit on main has a downloadable,
-# testable build.
+# Builds downloadable (unsigned) artifacts for every push to main so any
+# commit can be tested. Releases are produced by the Release workflow.
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "web-app/**"
 
-# Shares the concurrency group with the Release workflow so a manual release
-# dispatch supersedes the push build (same macOS matrix, no point running both).
 concurrency:
-  group: parler-macos-build-${{ github.ref }}
+  group: main-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      apple_signing: ${{ steps.secrets.outputs.apple_signing }}
+      sign_binaries: ${{ steps.secrets.outputs.sign_binaries }}
+    steps:
+      - id: secrets
+        shell: bash
+        env:
+          HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+          HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          echo "apple_signing=$HAS_APPLE_CERT" >> "$GITHUB_OUTPUT"
+          echo "sign_binaries=$HAS_UPDATER_KEY" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: preflight
     permissions:
       contents: write
     strategy:
@@ -27,9 +41,12 @@ jobs:
           - platform: "macos-26"
             args: "--target aarch64-apple-darwin"
             target: "aarch64-apple-darwin"
-          - platform: "macos-latest"
-            args: "--target x86_64-apple-darwin"
-            target: "x86_64-apple-darwin"
+          - platform: "windows-latest"
+            args: ""
+            target: "x86_64-pc-windows-msvc"
+          - platform: "ubuntu-24.04"
+            args: "--bundles appimage,deb"
+            target: "x86_64-unknown-linux-gnu"
 
     uses: ./.github/workflows/build.yml
     with:
@@ -37,5 +54,7 @@ jobs:
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
       upload-artifacts: true
-      sign-binaries: true
+      sign-binaries: ${{ needs.preflight.outputs.sign_binaries == 'true' }}
+      apple_signing: ${{ needs.preflight.outputs.apple_signing == 'true' }}
+      asset-prefix: "whispersm-main"
     secrets: inherit

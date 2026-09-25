@@ -3,7 +3,23 @@ name: "Build Test"
 on: workflow_dispatch
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      apple_signing: ${{ steps.secrets.outputs.apple_signing }}
+      sign_binaries: ${{ steps.secrets.outputs.sign_binaries }}
+    steps:
+      - id: secrets
+        shell: bash
+        env:
+          HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+          HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          echo "apple_signing=$HAS_APPLE_CERT" >> "$GITHUB_OUTPUT"
+          echo "sign_binaries=$HAS_UPDATER_KEY" >> "$GITHUB_OUTPUT"
+
   build-test:
+    needs: preflight
     permissions:
       contents: write
     strategy:
@@ -37,8 +53,9 @@ jobs:
       platform: ${{ matrix.platform }}
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
-      sign-binaries: true
-      asset-prefix: "handy-test"
+      sign-binaries: ${{ needs.preflight.outputs.sign_binaries == 'true' }}
+      apple_signing: ${{ needs.preflight.outputs.apple_signing == 'true' }}
+      asset-prefix: "whispersm-test"
       upload-artifacts: true
       is-debug-build: ${{ contains(matrix.args, '--debug') }}
     secrets: inherit
