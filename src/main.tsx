@@ -5,6 +5,8 @@ import App from "./App";
 
 // Set platform before render so CSS can scope per-platform (e.g. scrollbar styles)
 document.documentElement.dataset.platform = platform();
+// Dark until the saved theme preference is applied (avoids a white flash).
+document.documentElement.dataset.theme = "dark";
 
 // Initialize i18n
 import "./i18n";

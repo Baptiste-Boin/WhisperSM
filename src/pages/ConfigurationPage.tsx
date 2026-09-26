@@ -170,7 +170,7 @@ export const ConfigurationPage: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateSetting, isUpdating } = useSettings();
 
-  const theme: ThemePreference = settings?.theme ?? "auto";
+  const theme: ThemePreference = settings?.theme ?? "dark";
   const overlayPosition = settings?.overlay_position ?? "bottom";
   const overlayStyle: OverlayStyle = settings?.overlay_style ?? "classic";
   const recordingWindow: RecordingWindow =

@@ -145,9 +145,10 @@ pub const VOICE_TO_TEXT_MODE_ID: &str = "act_voice_to_text";
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ThemePreference {
-    #[default]
     Auto,
     Light,
+    /// Default: dark interface, like Superwhisper.
+    #[default]
     Dark,
 }
 

@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const highlighted = PARENT_SECTION[activeSection] ?? activeSection;
 
   return (
-    <aside className="flex flex-col w-[236px] shrink-0 h-full bg-sidebar border-e border-border">
+    <aside className="wsm-sidebar flex flex-col w-[236px] shrink-0 h-full bg-sidebar border-e border-border">
       {/* Space for the traffic lights on macOS */}
       <div className="h-[52px] shrink-0" data-tauri-drag-region />
 

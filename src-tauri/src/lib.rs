@@ -588,11 +588,29 @@ pub fn run(cli_args: CliArgs) {
                     tauri::WebviewUrl::App("/".into()),
                 )
                 .title(window_title)
-                .inner_size(680.0, 570.0)
-                .min_inner_size(680.0, 570.0)
+                .inner_size(920.0, 640.0)
+                .min_inner_size(780.0, 540.0)
                 .resizable(true)
                 .maximizable(false)
                 .visible(false);
+
+                // macOS: unified window like Superwhisper. The traffic lights
+                // float over the sidebar, which shows the system sidebar
+                // material (vibrancy) through a transparent webview.
+                #[cfg(target_os = "macos")]
+                {
+                    use tauri::window::{Effect, EffectState, EffectsBuilder};
+                    win_builder = win_builder
+                        .title_bar_style(tauri::TitleBarStyle::Overlay)
+                        .hidden_title(true)
+                        .transparent(true)
+                        .effects(
+                            EffectsBuilder::new()
+                                .effect(Effect::Sidebar)
+                                .state(EffectState::FollowsWindowActiveState)
+                                .build(),
+                        );
+                }
 
                 if let Some(data_dir) = portable::data_dir() {
                     win_builder = win_builder.data_directory(data_dir.join("webview"));

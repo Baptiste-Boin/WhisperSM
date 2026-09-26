@@ -60,7 +60,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <header
-      className="h-[52px] shrink-0 flex items-center gap-3 px-4 border-b border-border bg-background"
+      className={`h-[52px] shrink-0 flex items-center gap-3 px-4 border-b border-border bg-background ${
+        sidebarOpen ? "" : "wsm-traffic-light-gap"
+      }`}
       data-tauri-drag-region
     >
       <div className="flex items-center gap-1">

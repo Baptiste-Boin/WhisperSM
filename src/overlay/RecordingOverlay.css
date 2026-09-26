@@ -5,8 +5,8 @@
   align-items: center;
   gap: 6px;
   padding: 0 12px;
-  background: rgba(20, 20, 28, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 17px;
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.35),
@@ -37,11 +37,11 @@
 }
 
 .recording-overlay.state-recording {
-  border-color: rgba(139, 124, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .recording-overlay.state-processing {
-  border-color: rgba(79, 157, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .overlay-left {
@@ -56,7 +56,7 @@
   position: absolute;
   inset: -4px;
   border-radius: 999px;
-  border: 1px solid rgba(139, 124, 255, 0.7);
+  border: 1px solid rgba(255, 59, 48, 0.75);
   animation: record-pulse 1.8s ease-out infinite;
   pointer-events: none;
 }
@@ -95,7 +95,7 @@
 
 .bar {
   flex: 1;
-  background: linear-gradient(180deg, #a49bff 0%, #6d9bff 100%);
+  background: #ffffff;
   max-height: 22px;
   border-radius: 1.5px;
   min-height: 3px;
@@ -141,7 +141,7 @@
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #7c6bff 0%, #2e8bff 100%);
+  background: #0a84ff;
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -252,7 +252,7 @@
 
 /* Mode switch flash */
 .recording-overlay.state-mode {
-  border-color: rgba(61, 139, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .mode-text {

@@ -82,7 +82,10 @@ const Frame: React.FC<{
   footer?: React.ReactNode;
 }> = ({ steps, current, children, footer }) => (
   <div className="h-screen w-screen flex flex-col bg-background select-none">
-    <div className="flex items-center justify-between px-8 pt-6">
+    <div
+      className="wsm-titlebar-inset flex items-center justify-between px-8 pt-6"
+      data-tauri-drag-region
+    >
       <WhisperSMLogo size={24} />
       <StepDots steps={steps} current={current} />
     </div>

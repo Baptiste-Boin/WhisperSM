@@ -366,10 +366,7 @@ function App() {
   const isWide = WIDE_SECTIONS.has(currentSection);
 
   return (
-    <div
-      dir={direction}
-      className="h-screen flex select-none cursor-default bg-background"
-    >
+    <div dir={direction} className="h-screen flex select-none cursor-default">
       <Toaster
         theme="system"
         position="bottom-center"
@@ -389,7 +386,7 @@ function App() {
           onSectionChange={setCurrentSection}
         />
       )}
-      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
         <HeaderBar
           sidebarOpen={sidebarOpen}
           onToggleSidebar={toggleSidebar}
