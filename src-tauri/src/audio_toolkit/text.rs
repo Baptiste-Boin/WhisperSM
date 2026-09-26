@@ -565,3 +565,80 @@ mod tests {
         );
     }
 }
+
+/// Apply vocabulary replacements: every whole-word, case-insensitive match of
+/// a `from` phrase is rewritten as its `to` value. When the matched text
+/// started with a capital letter and the replacement is lowercase, the
+/// replacement is capitalised so sentence starts keep their casing.
+pub fn apply_vocabulary_replacements(text: &str, replacements: &[(String, String)]) -> String {
+    let mut result = text.to_string();
+    for (from, to) in replacements {
+        let from = from.trim();
+        if from.is_empty() {
+            continue;
+        }
+        let pattern = format!(r"(?i)\b{}\b", regex::escape(from));
+        let Ok(re) = Regex::new(&pattern) else {
+            continue;
+        };
+        result = re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let matched = &caps[0];
+                let starts_upper = matched.chars().next().is_some_and(|c| c.is_uppercase());
+                let to_is_lower = to.chars().next().is_some_and(|c| c.is_lowercase());
+                if starts_upper && to_is_lower {
+                    let mut chars = to.chars();
+                    match chars.next() {
+                        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                        None => String::new(),
+                    }
+                } else {
+                    to.clone()
+                }
+            })
+            .into_owned();
+    }
+    result
+}
+
+#[cfg(test)]
+mod vocabulary_tests {
+    use super::apply_vocabulary_replacements;
+
+    fn pairs(items: &[(&str, &str)]) -> Vec<(String, String)> {
+        items
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn replaces_whole_words_case_insensitively() {
+        let out = apply_vocabulary_replacements(
+            "I use super whisper and Super Whisper daily",
+            &pairs(&[("super whisper", "Superwhisper")]),
+        );
+        assert_eq!(out, "I use Superwhisper and Superwhisper daily");
+    }
+
+    #[test]
+    fn keeps_sentence_capitalisation() {
+        let out = apply_vocabulary_replacements(
+            "Tralo is great. I like tralo.",
+            &pairs(&[("tralo", "tralo.app")]),
+        );
+        assert_eq!(out, "Tralo.app is great. I like tralo.app.");
+    }
+
+    #[test]
+    fn does_not_touch_partial_words() {
+        let out = apply_vocabulary_replacements("cat category", &pairs(&[("cat", "dog")]));
+        assert_eq!(out, "dog category");
+    }
+
+    #[test]
+    fn ignores_empty_sources() {
+        let out = apply_vocabulary_replacements("hello", &pairs(&[("", "x")]));
+        assert_eq!(out, "hello");
+    }
+}

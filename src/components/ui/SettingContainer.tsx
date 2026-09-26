@@ -76,8 +76,8 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   tooltipPosition = "top",
 }) => {
   const frame = grouped ? "" : "wsm-card";
-  const titleClasses = `text-sm font-medium text-text ${disabled ? "opacity-50" : ""}`;
-  const descClasses = `text-xs text-text-muted mt-0.5 leading-relaxed ${disabled ? "opacity-50" : ""}`;
+  const titleClasses = `text-[15px] font-normal text-text leading-snug ${disabled ? "opacity-50" : ""}`;
+  const descClasses = `text-[13px] text-text-muted mt-0.5 leading-snug ${disabled ? "opacity-50" : ""}`;
 
   if (layout === "stacked") {
     return (

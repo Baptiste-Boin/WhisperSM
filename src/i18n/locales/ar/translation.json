@@ -10,16 +10,25 @@
   },
   "sidebar": {
     "general": "عام",
+    "models": "النماذج",
     "advanced": "متقدم",
     "postProcessing": "معالجة لاحقة",
     "history": "السجل",
     "debug": "تصحيح الأخطاء",
     "about": "حول",
-    "models": "النماذج",
     "home": "Home",
     "modes": "Modes",
     "settings": "Settings",
-    "speechModel": "Speech model"
+    "speechModel": "Speech model",
+    "vocabulary": "Vocabulary",
+    "configuration": "Configuration",
+    "sound": "Sound",
+    "library": "Models library",
+    "appName": "WhisperSM",
+    "footerBadge": "OSS",
+    "footerTagline": "Free & open source",
+    "collapse": "Hide sidebar",
+    "expand": "Show sidebar"
   },
   "onboarding": {
     "subtitle": "للبدء، اختر نموذج التفريغ الصوتي",
@@ -42,19 +51,19 @@
         "description": ".دقة جيدة، سرعة متوسطة"
       },
       "turbo": {
-        "name": "Whisper Turbo",
+        "name": "Whisper Large v3 Turbo",
         "description": ".توازن بين الدقة والسرعة"
       },
       "large": {
-        "name": "Whisper Large",
+        "name": "Whisper Large v3",
         "description": ".دقة جيدة، لكنه بطيء"
       },
       "parakeet-tdt-0.6b-v2": {
-        "name": "Parakeet V2",
+        "name": "Parakeet",
         "description": ".الإنجليزية فقط. أفضل نموذج للمتحدثين بالإنجليزية"
       },
       "parakeet-tdt-0.6b-v3": {
-        "name": "Parakeet V3",
+        "name": "Parakeet Multilanguage",
         "description": ".سريع ودقيق"
       },
       "moonshine-base": {
@@ -176,6 +185,7 @@
   "modelSelector": {
     "custom": "مخصص",
     "active": "نشط",
+    "switching": "جارٍ التبديل...",
     "noModelsAvailable": "لا توجد نماذج متاحة",
     "verifying": "جارٍ التحقق من {{modelName}}...",
     "verifyingGeneric": "جارٍ التحقق...",
@@ -191,7 +201,6 @@
     "modelUnloaded": "تم إلغاء تحميل النموذج",
     "noModelDownloadRequired": "لا يوجد نموذج - التنزيل مطلوب",
     "deleteModel": "حذف {{modelName}}",
-    "switching": "جارٍ التبديل...",
     "downloadSpeed": "{{speed}} ميجابايت/ث",
     "cancel": "إلغاء",
     "cancelDownload": "إلغاء التنزيل",
@@ -205,6 +214,20 @@
     }
   },
   "settings": {
+    "modelSettings": {
+      "title": "إعدادات النموذج",
+      "noSettingsNeeded": "لا توجد إعدادات مطلوبة لهذا النموذج"
+    },
+    "longAudioModel": {
+      "title": "Long Audio Model",
+      "description": "Automatically switch to a different model when recording duration exceeds the threshold.",
+      "modelLabel": "Model for long recordings",
+      "modelDescription": "Select a model to use for recordings longer than the threshold.",
+      "thresholdLabel": "Duration threshold (seconds)",
+      "thresholdDescription": "Switch to the long audio model when recording exceeds this duration.",
+      "disabled": "Disabled",
+      "seconds": "{{value}}s"
+    },
     "general": {
       "title": "عام",
       "shortcut": {
@@ -214,6 +237,7 @@
         "none": "لا توجد اختصارات مجهزة",
         "notFound": "الاختصار غير موجود",
         "pressKeys": "...اضغط على المفاتيح",
+        "clickToSet": "Click to set",
         "bindings": {
           "transcribe": {
             "name": "اختصار التفريغ الصوتي",
@@ -240,8 +264,7 @@
           "restore": "فشل استعادة الاختصار الأصلي",
           "set": "فشل تعيين الاختصار: {{error}}",
           "reset": "فشل إعادة تعيين الاختصار إلى قيمته الأصلية"
-        },
-        "clickToSet": "Click to set"
+        }
       },
       "language": {
         "title": "اللغة",
@@ -254,6 +277,56 @@
       "pushToTalk": {
         "label": "اضغط للتحدث",
         "description": "استمر في الضغط للتسجيل، واترك للتوقف"
+      }
+    },
+    "models": {
+      "title": "نماذج النسخ",
+      "description": "اختر نموذج نسخ أو قم بتنزيل نماذج إضافية. تقدم النماذج المختلفة مستويات متفاوتة من الدقة والسرعة.",
+      "tabs": {
+        "transcription": "Transcription",
+        "processing": "Processing"
+      },
+      "yourModels": "النماذج المحمّلة",
+      "availableModels": "متاح للتنزيل",
+      "downloaded": "تم التنزيل",
+      "available": "متاح للتنزيل",
+      "deleteConfirm": "هل أنت متأكد أنك تريد حذف {{modelName}}؟ ستحتاج إلى تنزيله مرة أخرى لاستخدامه.",
+      "deleteActiveConfirm": "{{modelName}} هو النموذج النشط حاليًا. حذفه سيوقف النسخ حتى تختار نموذجًا جديدًا. هل أنت متأكد؟",
+      "deleteTitle": "حذف النموذج",
+      "filters": {
+        "all": "الكل",
+        "multiLanguage": "متعدد اللغات",
+        "translation": "ترجمة",
+        "allLanguages": "جميع اللغات"
+      },
+      "noModelsMatch": "لا توجد نماذج مطابقة لهذا الفلتر.",
+      "processingModels": {
+        "title": "Processing Models",
+        "description": "Save LLM models for use in post-processing actions.",
+        "noModels": "No processing models saved yet. Add one to use in your actions.",
+        "addModel": "Add Processing Model",
+        "provider": "Provider",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "Enter API key",
+        "model": "Model",
+        "modelPlaceholder": "Select or type a model",
+        "save": "Save",
+        "cancel": "Cancel",
+        "fetchModels": "Fetch models",
+        "alreadySaved": "This model is already saved."
+      },
+      "languageModels": {
+        "description": "Add the language models you want to use for post-processing. Provide your provider API key once, then pick a model.",
+        "addModel": "Add model",
+        "provider": "Provider",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "Enter API key",
+        "model": "Model",
+        "modelPlaceholder": "Search or type a model",
+        "useModel": "Use \"{{model}}\"",
+        "fetchModels": "Refresh models",
+        "label": "Label (optional)",
+        "labelPlaceholder": "Display name for this model"
       }
     },
     "sound": {
@@ -459,7 +532,6 @@
         "selectToEdit": ".اختر مطالبة أعلاه لعرض وتعديل تفاصيلها",
         "createFirst": ".انقر على 'إنشاء مطالبة جديدة' أعلاه لإنشاء أول مطالبة معالجة لاحقة لك"
       },
-      "description": "Create post-processing actions that rewrite your transcription with an AI model. Trigger them with a global shortcut or by pressing a number key while recording.",
       "actions": {
         "newAction": "New action",
         "newTitle": "New action",
@@ -485,6 +557,7 @@
         "emptyTitle": "No actions yet",
         "shortcut": "Global shortcut"
       },
+      "description": "Create post-processing actions that rewrite your transcription with an AI model. Trigger them with a global shortcut or by pressing a number key while recording.",
       "defaultShortcut": {
         "title": "Default shortcut",
         "toggleLabel": "Enable default post-processing shortcut",
@@ -595,6 +668,14 @@
         "title": "مجلد بيانات التطبيق",
         "description": "الموقع الذي يخزن فيه WhisperSM بياناته"
       },
+      "exportImport": {
+        "title": "Export / Import Settings",
+        "description": "Transfer your configuration to another computer",
+        "export": "Export",
+        "import": "Import",
+        "exportSuccess": "Settings exported successfully",
+        "importSuccess": "Settings imported successfully"
+      },
       "sourceCode": {
         "title": "كود المصدر",
         "description": "عرض كود المصدر والمساهمة",
@@ -612,79 +693,7 @@
           "description": "استنتاج عالي الأداء لنموذج التعرف التلقائي على الكلام Whisper من OpenAI",
           "details": ".يستخدم WhisperSM برنامج Whisper.cpp لمعالجة سريعة ومحلية لتحويل الكلام إلى نص. شكراً للعمل الرائع الذي قام به Georgi Gerganov والمساهمون"
         }
-      },
-      "exportImport": {
-        "title": "Export / Import Settings",
-        "description": "Transfer your configuration to another computer",
-        "export": "Export",
-        "import": "Import",
-        "exportSuccess": "Settings exported successfully",
-        "importSuccess": "Settings imported successfully"
       }
-    },
-    "modelSettings": {
-      "title": "إعدادات النموذج",
-      "noSettingsNeeded": "لا توجد إعدادات مطلوبة لهذا النموذج"
-    },
-    "models": {
-      "title": "نماذج النسخ",
-      "description": "اختر نموذج نسخ أو قم بتنزيل نماذج إضافية. تقدم النماذج المختلفة مستويات متفاوتة من الدقة والسرعة.",
-      "yourModels": "النماذج المحمّلة",
-      "availableModels": "متاح للتنزيل",
-      "downloaded": "تم التنزيل",
-      "available": "متاح للتنزيل",
-      "deleteConfirm": "هل أنت متأكد أنك تريد حذف {{modelName}}؟ ستحتاج إلى تنزيله مرة أخرى لاستخدامه.",
-      "deleteActiveConfirm": "{{modelName}} هو النموذج النشط حاليًا. حذفه سيوقف النسخ حتى تختار نموذجًا جديدًا. هل أنت متأكد؟",
-      "deleteTitle": "حذف النموذج",
-      "filters": {
-        "all": "الكل",
-        "multiLanguage": "متعدد اللغات",
-        "translation": "ترجمة",
-        "allLanguages": "جميع اللغات"
-      },
-      "noModelsMatch": "لا توجد نماذج مطابقة لهذا الفلتر.",
-      "languageModels": {
-        "description": "Add the language models you want to use for post-processing. Provide your provider API key once, then pick a model.",
-        "addModel": "Add model",
-        "provider": "Provider",
-        "apiKey": "API Key",
-        "apiKeyPlaceholder": "Enter API key",
-        "model": "Model",
-        "modelPlaceholder": "Search or type a model",
-        "useModel": "Use \"{{model}}\"",
-        "fetchModels": "Refresh models",
-        "label": "Label (optional)",
-        "labelPlaceholder": "Display name for this model"
-      },
-      "tabs": {
-        "transcription": "Transcription",
-        "processing": "Processing"
-      },
-      "processingModels": {
-        "title": "Processing Models",
-        "description": "Save LLM models for use in post-processing actions.",
-        "noModels": "No processing models saved yet. Add one to use in your actions.",
-        "addModel": "Add Processing Model",
-        "provider": "Provider",
-        "apiKey": "API Key",
-        "apiKeyPlaceholder": "Enter API key",
-        "model": "Model",
-        "modelPlaceholder": "Select or type a model",
-        "save": "Save",
-        "cancel": "Cancel",
-        "fetchModels": "Fetch models",
-        "alreadySaved": "This model is already saved."
-      }
-    },
-    "longAudioModel": {
-      "title": "Long Audio Model",
-      "description": "Automatically switch to a different model when recording duration exceeds the threshold.",
-      "modelLabel": "Model for long recordings",
-      "modelDescription": "Select a model to use for recordings longer than the threshold.",
-      "thresholdLabel": "Duration threshold (seconds)",
-      "thresholdDescription": "Switch to the long audio model when recording exceeds this duration.",
-      "disabled": "Disabled",
-      "seconds": "{{value}}s"
     }
   },
   "footer": {
@@ -724,7 +733,13 @@
     "off": "إيقاف",
     "yes": "نعم",
     "no": "لا",
-    "noOptionsFound": "لم يتم العثور على خيارات"
+    "noOptionsFound": "لم يتم العثور على خيارات",
+    "back": "Back",
+    "search": "Search",
+    "done": "Done",
+    "learnMore": "Learn more",
+    "none": "None",
+    "unknown": "Unknown"
   },
   "accessibility": {
     "permissionsRequired": "أذونات إمكانية الوصول مطلوبة",
@@ -755,7 +770,9 @@
   "overlay": {
     "transcribing": "...جاري التفريغ",
     "processing": "...جاري المعالجة",
-    "cancelConfirm": "Esc again to cancel"
+    "cancelConfirm": "Esc again to cancel",
+    "idle": "Ready",
+    "mode": "Mode"
   },
   "home": {
     "hero": {
@@ -789,7 +806,16 @@
       "enhanced": "AI enhanced",
       "enhancedHint": "transcriptions rewritten by a mode",
       "lastUsed": "Last dictation",
-      "never": "No dictation yet"
+      "never": "No dictation yet",
+      "wpm": "{{value}} WPM",
+      "averageSpeed": "Average speed",
+      "appsUsed": "Apps used",
+      "savedAllTime": "Saved all time",
+      "savedThisWeek": "Saved this week",
+      "hours": "{{count}} hours",
+      "minutes": "{{count}} min",
+      "savedHint": "Time saved compared to typing the same words at 40 words per minute.",
+      "appsHint": "Apps are detected when a recording starts. Older entries have no app."
     },
     "modes": {
       "title": "Modes",
@@ -805,6 +831,52 @@
     },
     "microphone": {
       "title": "Microphone"
+    },
+    "period": {
+      "thisWeek": "This week",
+      "allTime": "All time"
+    },
+    "getStarted": {
+      "title": "Get started",
+      "startRecording": {
+        "title": "Start recording",
+        "description": "Turn your voice to text with a single click."
+      },
+      "shortcuts": {
+        "title": "Customize your shortcuts",
+        "description": "Change the keyboard shortcuts for WhisperSM."
+      },
+      "createMode": {
+        "title": "Create a mode",
+        "description": "Build the perfect mode for your workflow."
+      },
+      "vocabulary": {
+        "title": "Add vocabulary",
+        "description": "Teach WhisperSM custom words, names, or industry terms."
+      },
+      "setShortcut": "Set a shortcut"
+    },
+    "whatsNew": {
+      "title": "What's new?",
+      "viewAll": "View all changes"
+    },
+    "changelog": {
+      "modelsLibrary": {
+        "title": "Models library",
+        "description": "Every voice and language model in one place: free cloud providers, on-device models, favourites and API keys."
+      },
+      "cloudVoice": {
+        "title": "Cloud voice models",
+        "description": "Transcribe with Deepgram Nova, ElevenLabs Scribe, Mistral Voxtral, Cohere Transcribe or Whisper on Groq, using free tiers."
+      },
+      "modes": {
+        "title": "Active mode",
+        "description": "Pick which mode the main shortcut uses and switch with a shortcut. Each mode can use its own voice model."
+      },
+      "vocabulary": {
+        "title": "Vocabulary",
+        "description": "Add words the models should know and replacements such as “super whisper → Superwhisper”."
+      }
     }
   },
   "modes": {
@@ -828,7 +900,50 @@
       "subtitle": "Describe how the transcription should be rewritten and pick the AI model that runs it.",
       "onDevice": "On-device",
       "noModels": "No AI model available yet. Download an on-device model or add a cloud provider.",
-      "addModel": "Add a model"
+      "addModel": "Add a model",
+      "name": "Name",
+      "namePlaceholder": "e.g. Email, Notes, Slack…",
+      "icon": "Icon",
+      "type": "What this mode does",
+      "typeVoice": "Voice to text",
+      "typeVoiceHint": "Just transcribe. Nothing is rewritten.",
+      "typeAi": "Rewrite with AI",
+      "typeAiHint": "A language model rewrites the transcription with your prompt.",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Describe how the transcription should be rewritten…",
+      "promptHint": "Use ${output} to insert the transcription. If omitted, it is appended automatically.",
+      "languageModel": "Language model",
+      "languageModelPlaceholder": "Choose a language model",
+      "noLanguageModels": "No language model is ready yet. Download an on-device model or add an API key in the models library.",
+      "openLibrary": "Open models library",
+      "voiceModel": "Voice model",
+      "voiceModelDefault": "App default ({{model}})",
+      "voiceModelDefaultShort": "App default",
+      "quickKey": "Quick key while recording",
+      "noKey": "None",
+      "keyTaken": "{{key}} (in use)",
+      "shortcut": "Global shortcut",
+      "shortcutAfterSave": "Save the mode to assign it a global shortcut.",
+      "activeToggle": "Active mode",
+      "activeToggleHint": "Used by the main recording shortcut.",
+      "cannotDeleteBuiltIn": "The built-in Voice to text mode cannot be deleted.",
+      "deleteTitle": "Delete mode",
+      "deleteConfirm": "Delete the “{{name}}” mode? Its shortcut is removed too.",
+      "errors": {
+        "nameRequired": "Give the mode a name."
+      }
+    },
+    "info": "A mode decides which voice model transcribes your speech and, optionally, which AI model rewrites the result. The active mode is used by the main shortcut.",
+    "create": "Create mode",
+    "changeActive": "Change active mode",
+    "active": "Active",
+    "setActive": "Use this mode",
+    "voiceOnly": "Voice to text",
+    "aiMode": "AI mode",
+    "row": {
+      "appDefaultModel": "Default voice model",
+      "noAiModel": "No AI model selected",
+      "quickKey": "Press {{key}} while recording"
     }
   },
   "models": {
@@ -908,5 +1023,364 @@
       "models": "Open-weight language models used for on-device post-processing."
     },
     "license": "Released under the MIT license."
+  },
+  "shell": {
+    "microphone": {
+      "title": "Microphone",
+      "default": "{{name}} (Default)",
+      "systemDefault": "System microphone"
+    },
+    "output": {
+      "title": "Output device",
+      "systemDefault": "System output"
+    },
+    "modeChanged": "Mode: {{name}}"
+  },
+  "vocabulary": {
+    "title": "Vocabulary",
+    "placeholder": "New word or replacement",
+    "addWord": "Add word",
+    "replaceWith": "Replace with…",
+    "replacementPlaceholder": "Written as…",
+    "confirmReplacement": "Save replacement",
+    "cancel": "Cancel",
+    "empty": "Add names, brands or jargon so they are spelled right. Use “Replace with…” to rewrite what the model hears (“super whisper” → “Superwhisper”).",
+    "import": "Import from a text file",
+    "importHint": "One entry per line. Write “heard -> written” for a replacement.",
+    "imported": "{{count}} entries imported",
+    "importFailed": "Could not read that file.",
+    "remove": "Remove {{word}}",
+    "duplicate": "“{{word}}” is already in your vocabulary.",
+    "sections": {
+      "replacements": "Replacements",
+      "words": "Words"
+    }
+  },
+  "configuration": {
+    "title": "Configuration",
+    "appearance": {
+      "title": "Appearance",
+      "theme": {
+        "title": "Theme",
+        "auto": "Auto",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "recordingWindow": {
+        "title": "Recording window",
+        "classic": "Classic",
+        "mini": "Mini",
+        "none": "None"
+      },
+      "alwaysShow": {
+        "title": "Always show",
+        "description": "Keep the recording window on screen between recordings."
+      }
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "toggleRecording": {
+        "title": "Toggle Recording",
+        "description": "Starts and stops recordings"
+      },
+      "cancelRecording": {
+        "title": "Cancel Recording",
+        "description": "Discards the active recording"
+      },
+      "changeMode": {
+        "title": "Change mode",
+        "description": "Switches to the next mode"
+      },
+      "pushToTalk": {
+        "title": "Push to Talk",
+        "description": "Hold to record, release when done"
+      },
+      "aiShortcut": {
+        "title": "Dictate with AI",
+        "description": "Records and applies the default AI mode"
+      },
+      "record": "Record shortcut",
+      "pressKeys": "Press keys…",
+      "reset": "Reset to default"
+    },
+    "application": {
+      "title": "Application",
+      "update": {
+        "title": "Update application",
+        "check": "Check for Updates…"
+      },
+      "autoUpdate": {
+        "title": "Automatically check for updates",
+        "description": "Look for new versions on GitHub when the app starts."
+      },
+      "launchOnLogin": {
+        "title": "Launch on login",
+        "description": "Start WhisperSM automatically when you log in."
+      },
+      "errorLogging": {
+        "title": "Error logging",
+        "description": "Write detailed logs to help diagnose problems. Off keeps only errors."
+      },
+      "keepRecordings": {
+        "title": "Keep recordings for",
+        "description": "Audio files are deleted after this period. Starred entries are always kept.",
+        "forever": "Forever",
+        "latest": "Latest {{count}}",
+        "days3": "3 days",
+        "weeks2": "2 weeks",
+        "months3": "3 months"
+      },
+      "language": {
+        "title": "Interface language",
+        "description": "Language of the WhisperSM interface."
+      }
+    },
+    "advanced": {
+      "title": "Advanced settings"
+    }
+  },
+  "advanced": {
+    "title": "Advanced settings",
+    "back": "Configuration",
+    "voiceModel": {
+      "title": "Voice model",
+      "activeDuration": {
+        "title": "Voice model active duration",
+        "description": "How long the model stays loaded in memory after a recording."
+      },
+      "language": {
+        "title": "Spoken language",
+        "description": "Auto detects the language. Choosing one improves accuracy for it."
+      },
+      "translate": {
+        "title": "Translate to English",
+        "description": "Translate speech from other languages to English while transcribing."
+      },
+      "holdToTalk": {
+        "title": "Hold the main shortcut to record",
+        "description": "When off, press once to start and once to stop."
+      }
+    },
+    "folder": {
+      "title": "App folder location",
+      "description": "Where models, recordings and settings are stored.",
+      "open": "Open folder"
+    },
+    "textInput": {
+      "title": "Text input",
+      "clipboard": {
+        "title": "Clipboard content",
+        "description": "What stays in the clipboard after the text is pasted.",
+        "keep": "Keep what I have copied",
+        "replace": "Keep the transcription"
+      },
+      "paste": {
+        "title": "Paste result text",
+        "description": "Insert the text into the active app. When off, the text only goes to history and the clipboard."
+      },
+      "autoSend": {
+        "title": "Auto-send after paste",
+        "description": "Press a key after pasting, to send a message right away.",
+        "key": "Key to press"
+      },
+      "simulate": {
+        "title": "Simulate keypresses",
+        "description": "Type the text key by key instead of pasting. Slower, but works in apps that block paste."
+      },
+      "trailingSpace": {
+        "title": "Append trailing space",
+        "description": "Add a space after the pasted text."
+      }
+    },
+    "app": {
+      "title": "Application",
+      "startHidden": {
+        "title": "Start hidden",
+        "description": "Launch in the menu bar without opening the window."
+      },
+      "trayIcon": {
+        "title": "Show menu bar icon",
+        "description": "Show the WhisperSM icon in the menu bar / system tray."
+      }
+    },
+    "data": {
+      "title": "Data",
+      "exportImport": "Export / import settings"
+    }
+  },
+  "sound": {
+    "title": "Sound",
+    "recording": {
+      "title": "Recording",
+      "microphone": {
+        "title": "Microphone",
+        "description": "Device used for recordings."
+      },
+      "silenceRemoval": {
+        "title": "Silence removal",
+        "description": "Drop silent parts before transcribing. Faster and fewer hallucinations."
+      },
+      "playback": {
+        "title": "Playback when recording",
+        "description": "What happens to other audio while you record.",
+        "mute": "Mute",
+        "nothing": "Do nothing"
+      },
+      "alwaysOn": {
+        "title": "Always-on microphone",
+        "description": "Keep the microphone open for a faster start."
+      }
+    },
+    "effects": {
+      "title": "Sound Effects",
+      "label": "Sound effects",
+      "simple": "Simple",
+      "classic": "Classic",
+      "off": "Off",
+      "volume": "Volume",
+      "output": {
+        "title": "Output device",
+        "description": "Device used to play sound effects."
+      },
+      "preview": "Preview sounds"
+    }
+  },
+  "library": {
+    "title": "Models library",
+    "search": "Search models",
+    "allProviders": "All providers",
+    "apiKeys": "API keys",
+    "columns": {
+      "name": "Model name",
+      "type": "Type",
+      "speedAccuracy": "Speed / Accuracy",
+      "cloudOffline": "Cloud/Offline"
+    },
+    "type": {
+      "voice": {
+        "title": "Voice model",
+        "description": "Converts speech audio to text."
+      },
+      "language": {
+        "title": "Language model",
+        "description": "Processes and transforms transcribed text."
+      }
+    },
+    "scores": {
+      "speed": "Speed",
+      "accuracy": "Accuracy"
+    },
+    "filters": {
+      "title": "Filter",
+      "all": "All models",
+      "voice": "Voice models",
+      "language": "Language models",
+      "cloud": "Cloud",
+      "offline": "Offline",
+      "favorites": "Favourites",
+      "ready": "Ready to use"
+    },
+    "badges": {
+      "new": "NEW",
+      "en": "EN"
+    },
+    "status": {
+      "active": "Active",
+      "inUse": "In use",
+      "cloud": "Cloud",
+      "needsKey": "Add an API key for {{provider}} to use this model",
+      "downloaded": "Downloaded",
+      "onDevice": "On device"
+    },
+    "actions": {
+      "download": "Download",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "use": "Use for dictation",
+      "enable": "Add to modes",
+      "disable": "Remove from modes",
+      "favorite": "Add to favourites",
+      "unfavorite": "Remove from favourites",
+      "addKey": "Add API key",
+      "try": "Try"
+    },
+    "older": {
+      "show": "Older models",
+      "hide": "Hide older models"
+    },
+    "empty": "No models match.",
+    "keys": {
+      "title": "API keys",
+      "description": "Keys are stored on this computer and only sent to the provider you chose. Every provider listed has a free tier.",
+      "placeholder": "Paste your API key",
+      "getKey": "Get a key",
+      "saved": "Key saved",
+      "removed": "Key removed",
+      "clear": "Remove",
+      "free": "Free tier",
+      "capabilities": {
+        "voice": "Voice",
+        "language": "Language"
+      }
+    },
+    "local": {
+      "ram": "{{gb}} GB RAM",
+      "params": "{{params}} parameters",
+      "downloading": "Downloading {{percentage}}%",
+      "resume": "Resume"
+    },
+    "confirm": {
+      "deleteTitle": "Delete model",
+      "delete": "Delete {{model}} from this computer? You can download it again later.",
+      "deleteActive": "{{model}} is your active voice model. Deleting it stops dictation until you pick another one. Continue?"
+    },
+    "toasts": {
+      "activated": "{{model}} is now used for dictation",
+      "enabled": "{{model}} can now be used in modes",
+      "downloadComplete": "{{model}} is ready",
+      "downloadFailed": "Download failed",
+      "error": "Something went wrong"
+    },
+    "custom": {
+      "title": "Custom language model",
+      "description": "Any OpenAI-compatible endpoint (Ollama, LM Studio, vLLM…).",
+      "add": "Add custom model",
+      "baseUrl": "Base URL",
+      "model": "Model id",
+      "label": "Label (optional)",
+      "save": "Save"
+    }
+  },
+  "historyPage": {
+    "title": "History",
+    "search": "Search history",
+    "empty": "No transcriptions yet. Start recording to build your history.",
+    "noResults": "Nothing matches “{{query}}”.",
+    "loading": "Loading history…",
+    "groups": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo": "{{count}} days ago"
+    },
+    "details": {
+      "app": "Dictated in {{app}}",
+      "duration": "{{seconds}}s of audio",
+      "words": "{{count}} words",
+      "raw": "Raw transcription",
+      "processed": "AI rewrite"
+    },
+    "actions": {
+      "copy": "Copy",
+      "copied": "Copied",
+      "save": "Star",
+      "unsave": "Unstar",
+      "retranscribe": "Transcribe again",
+      "processWith": "Rewrite with a mode",
+      "delete": "Delete",
+      "openFolder": "Open recordings folder",
+      "collapse": "Collapse",
+      "expand": "Details"
+    },
+    "loadMore": "Load more"
   }
 }

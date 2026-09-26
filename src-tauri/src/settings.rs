@@ -103,10 +103,13 @@ pub struct LLMModel {
     pub label: String,
 }
 
-/// A post-processing action: a prompt applied to the transcription through a
-/// saved language model. Can be triggered by a dedicated global shortcut
-/// (stored in `bindings` under `ppa_<id>`) or by pressing `trigger_key`
-/// while a recording is in progress.
+/// A mode (post-processing action): a prompt applied to the transcription
+/// through a saved language model, optionally with its own speech model.
+/// A mode with an empty prompt is a plain "voice to text" mode.
+///
+/// Can be triggered by a dedicated global shortcut (stored in `bindings`
+/// under `ppa_<id>`), by pressing `trigger_key` while a recording is in
+/// progress, or by being the active mode (see `AppSettings::active_mode_id`).
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct PostProcessAction {
     pub id: String,
@@ -118,10 +121,53 @@ pub struct PostProcessAction {
     pub icon: String,
     #[serde(default)]
     pub trigger_key: Option<u8>,
+    /// Speech model used when this mode is active. `None` means the app-wide
+    /// selected model.
+    #[serde(default)]
+    pub speech_model_id: Option<String>,
+}
+
+impl PostProcessAction {
+    /// A mode without a prompt only transcribes; no language model runs.
+    pub fn is_voice_only(&self) -> bool {
+        self.prompt.trim().is_empty()
+    }
 }
 
 pub fn default_action_icon() -> String {
     "sparkles".to_string()
+}
+
+/// Id of the built-in "Voice to text" mode that ships with every install.
+pub const VOICE_TO_TEXT_MODE_ID: &str = "act_voice_to_text";
+
+/// Interface theme preference.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemePreference {
+    #[default]
+    Auto,
+    Light,
+    Dark,
+}
+
+/// Look of the floating recording window.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayStyle {
+    /// Timer, waveform and pause/cancel controls.
+    #[default]
+    Classic,
+    /// Compact pill with the waveform only.
+    Mini,
+}
+
+/// A vocabulary replacement: whenever `from` is transcribed it is rewritten
+/// as `to` (case-insensitive, whole words).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Type)]
+pub struct VocabularyReplacement {
+    pub from: String,
+    pub to: String,
 }
 
 /// Prefix for per-action global shortcut binding ids stored in `bindings`.
@@ -142,6 +188,22 @@ pub struct PostProcessProvider {
     pub models_endpoint: Option<String>,
     #[serde(default)]
     pub supports_structured_output: bool,
+    /// Offers chat/language models usable by modes.
+    #[serde(default = "default_true")]
+    pub supports_language: bool,
+    /// Offers a speech-to-text endpoint usable as a cloud voice model.
+    #[serde(default)]
+    pub supports_speech: bool,
+    /// Where the user can create an API key.
+    #[serde(default)]
+    pub api_key_url: Option<String>,
+    /// Short note about the provider's free tier, shown in the API key dialog.
+    #[serde(default)]
+    pub free_tier: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -478,6 +540,24 @@ pub struct AppSettings {
     pub long_audio_model: Option<String>,
     #[serde(default = "default_long_audio_threshold_seconds")]
     pub long_audio_threshold_seconds: f32,
+    /// Interface theme (auto follows the system).
+    #[serde(default)]
+    pub theme: ThemePreference,
+    /// Look of the floating recording window.
+    #[serde(default)]
+    pub overlay_style: OverlayStyle,
+    /// Keep the recording window visible (in an idle state) between recordings.
+    #[serde(default)]
+    pub overlay_always_show: bool,
+    /// Mode applied by the main recording shortcut.
+    #[serde(default)]
+    pub active_mode_id: Option<String>,
+    /// Vocabulary replacements applied to every transcription.
+    #[serde(default)]
+    pub vocabulary_replacements: Vec<VocabularyReplacement>,
+    /// Drop silent audio (voice activity detection) before transcribing.
+    #[serde(default = "default_true")]
+    pub silence_removal: bool,
 }
 
 fn default_model() -> String {
@@ -569,64 +649,148 @@ fn default_post_process_provider_id() -> String {
     "openai".to_string()
 }
 
+/// Build a cloud provider entry with the common defaults.
+#[allow(clippy::too_many_arguments)]
+fn cloud_provider(
+    id: &str,
+    label: &str,
+    base_url: &str,
+    structured_output: bool,
+    supports_language: bool,
+    supports_speech: bool,
+    api_key_url: &str,
+    free_tier: Option<&str>,
+) -> PostProcessProvider {
+    PostProcessProvider {
+        id: id.to_string(),
+        label: label.to_string(),
+        base_url: base_url.to_string(),
+        allow_base_url_edit: false,
+        models_endpoint: if supports_language {
+            Some("/models".to_string())
+        } else {
+            None
+        },
+        supports_structured_output: structured_output,
+        supports_language,
+        supports_speech,
+        api_key_url: Some(api_key_url.to_string()),
+        free_tier: free_tier.map(|s| s.to_string()),
+    }
+}
+
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
     let mut providers = vec![
-        PostProcessProvider {
-            id: "openai".to_string(),
-            label: "OpenAI".to_string(),
-            base_url: "https://api.openai.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-        },
-        PostProcessProvider {
-            id: "zai".to_string(),
-            label: "Z.AI".to_string(),
-            base_url: "https://api.z.ai/api/paas/v4".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-        },
-        PostProcessProvider {
-            id: "openrouter".to_string(),
-            label: "OpenRouter".to_string(),
-            base_url: "https://openrouter.ai/api/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-        },
-        PostProcessProvider {
-            id: "gemini".to_string(),
-            label: "Google Gemini".to_string(),
-            base_url: "https://generativelanguage.googleapis.com/v1beta/openai".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-        },
-        PostProcessProvider {
-            id: "anthropic".to_string(),
-            label: "Anthropic".to_string(),
-            base_url: "https://api.anthropic.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: false,
-        },
-        PostProcessProvider {
-            id: "groq".to_string(),
-            label: "Groq".to_string(),
-            base_url: "https://api.groq.com/openai/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: false,
-        },
-        PostProcessProvider {
-            id: "cerebras".to_string(),
-            label: "Cerebras".to_string(),
-            base_url: "https://api.cerebras.ai/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-        },
+        cloud_provider(
+            "gemini",
+            "Google Gemini",
+            "https://generativelanguage.googleapis.com/v1beta/openai",
+            true,
+            true,
+            false,
+            "https://aistudio.google.com/apikey",
+            Some("Free tier: Flash models at no cost, rate limited."),
+        ),
+        cloud_provider(
+            "mistral",
+            "Mistral AI",
+            "https://api.mistral.ai/v1",
+            true,
+            true,
+            true,
+            "https://console.mistral.ai/api-keys",
+            Some("Free Experiment plan: all models, rate limited, no card."),
+        ),
+        cloud_provider(
+            "groq",
+            "Groq",
+            "https://api.groq.com/openai/v1",
+            false,
+            true,
+            true,
+            "https://console.groq.com/keys",
+            Some("Free tier: open-weight chat models and Whisper transcription."),
+        ),
+        cloud_provider(
+            "zai",
+            "Z.AI",
+            "https://api.z.ai/api/paas/v4",
+            true,
+            true,
+            false,
+            "https://z.ai/manage-apikey/apikey-list",
+            Some("GLM Flash models are free."),
+        ),
+        cloud_provider(
+            "cerebras",
+            "Cerebras",
+            "https://api.cerebras.ai/v1",
+            true,
+            true,
+            false,
+            "https://cloud.cerebras.ai",
+            Some("Free trial credits on sign-up."),
+        ),
+        cloud_provider(
+            "openrouter",
+            "OpenRouter",
+            "https://openrouter.ai/api/v1",
+            true,
+            true,
+            false,
+            "https://openrouter.ai/keys",
+            Some("Models tagged \":free\" cost nothing."),
+        ),
+        cloud_provider(
+            "deepgram",
+            "Deepgram",
+            "https://api.deepgram.com/v1",
+            false,
+            false,
+            true,
+            "https://console.deepgram.com",
+            Some("$200 free credit on sign-up, no card."),
+        ),
+        cloud_provider(
+            "elevenlabs",
+            "ElevenLabs",
+            "https://api.elevenlabs.io/v1",
+            false,
+            false,
+            true,
+            "https://elevenlabs.io/app/settings/api-keys",
+            Some("Free plan includes Scribe transcription credits."),
+        ),
+        cloud_provider(
+            "cohere",
+            "Cohere",
+            "https://api.cohere.com/v2",
+            false,
+            false,
+            true,
+            "https://dashboard.cohere.com/api-keys",
+            Some("Trial keys are free, rate limited."),
+        ),
+        cloud_provider(
+            "openai",
+            "OpenAI",
+            "https://api.openai.com/v1",
+            true,
+            true,
+            true,
+            "https://platform.openai.com/api-keys",
+            None,
+        ),
+        cloud_provider(
+            "anthropic",
+            "Anthropic",
+            "https://api.anthropic.com/v1",
+            false,
+            true,
+            false,
+            "https://console.anthropic.com/settings/keys",
+            None,
+        ),
     ];
 
     // Note: We always include Apple Intelligence on macOS ARM64 without checking availability
@@ -642,6 +806,10 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: None,
             supports_structured_output: true,
+            supports_language: true,
+            supports_speech: false,
+            api_key_url: None,
+            free_tier: None,
         });
     }
 
@@ -653,6 +821,10 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         allow_base_url_edit: false,
         models_endpoint: None,
         supports_structured_output: false,
+        supports_language: true,
+        supports_speech: false,
+        api_key_url: None,
+        free_tier: None,
     });
 
     // Custom provider always comes last
@@ -663,6 +835,10 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         allow_base_url_edit: true,
         models_endpoint: Some("/models".to_string()),
         supports_structured_output: false,
+        supports_language: true,
+        supports_speech: true,
+        api_key_url: None,
+        free_tier: None,
     });
 
     providers
@@ -752,7 +928,7 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
             .find(|p| p.id == provider.id)
         {
             Some(existing) => {
-                // Sync supports_structured_output field for existing providers (migration)
+                // Sync capability metadata for existing providers (migration)
                 if existing.supports_structured_output != provider.supports_structured_output {
                     debug!(
                         "Updating supports_structured_output for provider '{}' from {} to {}",
@@ -761,6 +937,19 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                         provider.supports_structured_output
                     );
                     existing.supports_structured_output = provider.supports_structured_output;
+                    changed = true;
+                }
+                if existing.supports_language != provider.supports_language
+                    || existing.supports_speech != provider.supports_speech
+                    || existing.api_key_url != provider.api_key_url
+                    || existing.free_tier != provider.free_tier
+                    || existing.label != provider.label
+                {
+                    existing.supports_language = provider.supports_language;
+                    existing.supports_speech = provider.supports_speech;
+                    existing.api_key_url = provider.api_key_url.clone();
+                    existing.free_tier = provider.free_tier.clone();
+                    existing.label = provider.label.clone();
                     changed = true;
                 }
             }
@@ -838,12 +1027,51 @@ fn ensure_post_process_actions(settings: &mut AppSettings) -> bool {
                 llm_model_id: default_model_id.clone(),
                 icon: default_icon_for_prompt(&prompt.id),
                 trigger_key,
+                speech_model_id: None,
             });
         }
     }
 
     settings.post_process_actions_initialized = true;
     true
+}
+
+/// Make sure the built-in "Voice to text" mode exists and that
+/// `active_mode_id` points to an existing mode. Runs on every load.
+fn ensure_modes(settings: &mut AppSettings) -> bool {
+    let mut changed = false;
+
+    if !settings
+        .post_process_actions
+        .iter()
+        .any(|action| action.id == VOICE_TO_TEXT_MODE_ID)
+    {
+        settings.post_process_actions.insert(
+            0,
+            PostProcessAction {
+                id: VOICE_TO_TEXT_MODE_ID.to_string(),
+                name: "Voice to text".to_string(),
+                prompt: String::new(),
+                llm_model_id: None,
+                icon: "mic".to_string(),
+                trigger_key: None,
+                speech_model_id: None,
+            },
+        );
+        changed = true;
+    }
+
+    let active_is_valid = settings
+        .active_mode_id
+        .as_deref()
+        .map(|id| settings.post_process_actions.iter().any(|a| a.id == id))
+        .unwrap_or(false);
+    if !active_is_valid {
+        settings.active_mode_id = Some(VOICE_TO_TEXT_MODE_ID.to_string());
+        changed = true;
+    }
+
+    changed
 }
 
 /// Ensure every post-process action has a matching `ppa_<id>` shortcut binding
@@ -936,6 +1164,30 @@ pub fn get_default_settings() -> AppSettings {
                 .to_string(),
             default_binding: default_post_process_shortcut.to_string(),
             current_binding: default_post_process_shortcut.to_string(),
+        },
+    );
+    bindings.insert(
+        "push_to_talk".to_string(),
+        ShortcutBinding {
+            id: "push_to_talk".to_string(),
+            name: "Push to Talk".to_string(),
+            description: "Hold to record, release when done.".to_string(),
+            default_binding: "".to_string(),
+            current_binding: "".to_string(),
+        },
+    );
+    #[cfg(target_os = "macos")]
+    let default_change_mode_shortcut = "option+shift+k";
+    #[cfg(not(target_os = "macos"))]
+    let default_change_mode_shortcut = "ctrl+shift+k";
+    bindings.insert(
+        "change_mode".to_string(),
+        ShortcutBinding {
+            id: "change_mode".to_string(),
+            name: "Change mode".to_string(),
+            description: "Switches to the next mode.".to_string(),
+            default_binding: default_change_mode_shortcut.to_string(),
+            current_binding: default_change_mode_shortcut.to_string(),
         },
     );
     bindings.insert(
@@ -1034,6 +1286,12 @@ pub fn get_default_settings() -> AppSettings {
         extra_recording_buffer_ms: 0,
         long_audio_model: None,
         long_audio_threshold_seconds: default_long_audio_threshold_seconds(),
+        theme: ThemePreference::default(),
+        overlay_style: OverlayStyle::default(),
+        overlay_always_show: false,
+        active_mode_id: None,
+        vocabulary_replacements: Vec::new(),
+        silence_removal: true,
     }
 }
 
@@ -1075,10 +1333,24 @@ impl AppSettings {
             .find(|action| action.trigger_key == Some(key))
     }
 
+    /// The mode applied by the main recording shortcut.
+    pub fn active_mode(&self) -> Option<&PostProcessAction> {
+        self.active_mode_id
+            .as_deref()
+            .and_then(|id| self.post_process_action(id))
+    }
+
     /// The action used by the generic "transcribe with post-processing"
-    /// shortcut when no specific action was selected: the first in the list.
+    /// shortcut when no specific action was selected: the active mode when it
+    /// uses AI, otherwise the first AI mode in the list.
     pub fn default_post_process_action(&self) -> Option<&PostProcessAction> {
-        self.post_process_actions.first()
+        self.active_mode()
+            .filter(|action| !action.is_voice_only())
+            .or_else(|| {
+                self.post_process_actions
+                    .iter()
+                    .find(|action| !action.is_voice_only())
+            })
     }
 }
 
@@ -1128,6 +1400,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
     let mut changed = ensure_post_process_defaults(&mut settings);
     changed |= ensure_post_process_actions(&mut settings);
+    changed |= ensure_modes(&mut settings);
     changed |= ensure_action_bindings(&mut settings);
     if changed {
         store.set("settings", serde_json::to_value(&settings).unwrap());
@@ -1172,6 +1445,10 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     }
 
     if ensure_post_process_actions(&mut settings) {
+        updated = true;
+    }
+
+    if ensure_modes(&mut settings) {
         updated = true;
     }
 
@@ -1256,5 +1533,50 @@ mod tests {
         let out = format!("{:?}", map);
         assert!(!out.contains("secret"));
         assert!(out.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn modes_migration_adds_voice_mode_and_active_mode() {
+        let mut settings = get_default_settings();
+        assert!(ensure_post_process_actions(&mut settings));
+        assert!(ensure_modes(&mut settings));
+        assert_eq!(
+            settings.post_process_actions.first().map(|a| a.id.as_str()),
+            Some(VOICE_TO_TEXT_MODE_ID)
+        );
+        assert!(settings.post_process_actions[0].is_voice_only());
+        assert_eq!(
+            settings.active_mode_id.as_deref(),
+            Some(VOICE_TO_TEXT_MODE_ID)
+        );
+        // The generic AI shortcut skips the voice-only mode.
+        let default_ai = settings.default_post_process_action().unwrap();
+        assert!(!default_ai.is_voice_only());
+        // Second run is a no-op.
+        assert!(!ensure_modes(&mut settings));
+    }
+
+    #[test]
+    fn dangling_active_mode_is_reset() {
+        let mut settings = get_default_settings();
+        ensure_post_process_actions(&mut settings);
+        ensure_modes(&mut settings);
+        settings.active_mode_id = Some("does-not-exist".to_string());
+        assert!(ensure_modes(&mut settings));
+        assert_eq!(
+            settings.active_mode_id.as_deref(),
+            Some(VOICE_TO_TEXT_MODE_ID)
+        );
+    }
+
+    #[test]
+    fn providers_include_speech_and_language_capabilities() {
+        let providers = default_post_process_providers();
+        let deepgram = providers.iter().find(|p| p.id == "deepgram").unwrap();
+        assert!(deepgram.supports_speech && !deepgram.supports_language);
+        let mistral = providers.iter().find(|p| p.id == "mistral").unwrap();
+        assert!(mistral.supports_speech && mistral.supports_language);
+        let gemini = providers.iter().find(|p| p.id == "gemini").unwrap();
+        assert!(gemini.supports_language && !gemini.supports_speech);
     }
 }

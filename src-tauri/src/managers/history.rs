@@ -35,7 +35,17 @@ static MIGRATIONS: &[M] = &[
         "CREATE INDEX IF NOT EXISTS idx_history_saved_timestamp ON transcription_history(saved, timestamp);
          CREATE INDEX IF NOT EXISTS idx_history_timestamp ON transcription_history(timestamp);",
     ),
+    M::up("ALTER TABLE transcription_history ADD COLUMN app_name TEXT;"),
+    M::up("ALTER TABLE transcription_history ADD COLUMN duration_ms INTEGER;"),
 ];
+
+/// Columns selected for every `HistoryEntry` query, in the order
+/// `map_history_entry` expects.
+const ENTRY_COLUMNS: &str = "id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, app_name, duration_ms";
+
+/// Typing speed used to estimate how much time dictation saved compared to
+/// typing the same words (words per minute).
+const TYPING_WPM: f64 = 40.0;
 
 /// Aggregate numbers shown on the Home screen.
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -46,6 +56,14 @@ pub struct HistoryStats {
     pub words_today: i64,
     pub post_processed_entries: i64,
     pub last_timestamp: Option<i64>,
+    /// Total recorded speech, in milliseconds (entries with a known duration).
+    pub total_duration_ms: i64,
+    /// Number of distinct applications text was dictated into.
+    pub apps_used: i64,
+    /// Average dictation speed in words per minute (0 when unknown).
+    pub average_wpm: f64,
+    /// Estimated time saved compared to typing at 40 WPM, in milliseconds.
+    pub time_saved_ms: i64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -78,6 +96,10 @@ pub struct HistoryEntry {
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
     pub post_process_requested: bool,
+    /// Application that was frontmost when the dictation started.
+    pub app_name: Option<String>,
+    /// Length of the recorded (speech-only) audio, in milliseconds.
+    pub duration_ms: Option<i64>,
 }
 
 pub struct HistoryManager {
@@ -230,6 +252,8 @@ impl HistoryManager {
             post_processed_text: row.get("post_processed_text")?,
             post_process_prompt: row.get("post_process_prompt")?,
             post_process_requested: row.get("post_process_requested")?,
+            app_name: row.get("app_name")?,
+            duration_ms: row.get("duration_ms")?,
         })
     }
 
@@ -239,6 +263,7 @@ impl HistoryManager {
 
     /// Save a new history entry to the database.
     /// The WAV file should already have been written to the recordings directory.
+    #[allow(clippy::too_many_arguments)]
     pub fn save_entry(
         &self,
         file_name: String,
@@ -246,6 +271,8 @@ impl HistoryManager {
         post_process_requested: bool,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        app_name: Option<String>,
+        duration_ms: Option<i64>,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
@@ -260,8 +287,10 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                post_process_requested,
+                app_name,
+                duration_ms
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 &file_name,
                 timestamp,
@@ -271,6 +300,8 @@ impl HistoryManager {
                 &post_processed_text,
                 &post_process_prompt,
                 post_process_requested,
+                &app_name,
+                duration_ms,
             ],
         )?;
 
@@ -284,6 +315,8 @@ impl HistoryManager {
             post_processed_text,
             post_process_prompt,
             post_process_requested,
+            app_name,
+            duration_ms,
         };
 
         debug!("Saved history entry with id {}", entry.id);
@@ -333,13 +366,14 @@ impl HistoryManager {
             return Err(anyhow!("History entry {} not found", id));
         }
 
-        let entry = conn
-            .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
-                 FROM transcription_history WHERE id = ?1",
-                params![id],
-                Self::map_history_entry,
-            )?;
+        let entry = conn.query_row(
+            &format!(
+                "SELECT {} FROM transcription_history WHERE id = ?1",
+                ENTRY_COLUMNS
+            ),
+            params![id],
+            Self::map_history_entry,
+        )?;
 
         debug!("Updated transcription for history entry {}", id);
 
@@ -477,54 +511,58 @@ impl HistoryManager {
         Ok(())
     }
 
+    /// List entries newest first. `cursor` continues after the given id,
+    /// `limit` caps the page (max 100) and `query` filters on the raw or
+    /// processed text (case-insensitive substring).
     pub async fn get_history_entries(
         &self,
         cursor: Option<i64>,
         limit: Option<usize>,
+        query: Option<String>,
     ) -> Result<PaginatedHistory> {
         let conn = self.get_connection()?;
         let limit = limit.map(|l| l.min(100));
+        let query = query
+            .map(|q| q.trim().to_string())
+            .filter(|q| !q.is_empty());
 
-        let mut entries: Vec<HistoryEntry> = match (cursor, limit) {
-            (Some(cursor_id), Some(lim)) => {
-                let fetch_count = (lim + 1) as i64;
-                let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
-                     FROM transcription_history
-                     WHERE id < ?1
-                     ORDER BY id DESC
-                     LIMIT ?2",
-                )?;
-                let result = stmt
-                    .query_map(params![cursor_id, fetch_count], Self::map_history_entry)?
-                    .collect::<std::result::Result<Vec<_>, _>>()?;
-                result
-            }
-            (None, Some(lim)) => {
-                let fetch_count = (lim + 1) as i64;
-                let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
-                     FROM transcription_history
-                     ORDER BY id DESC
-                     LIMIT ?1",
-                )?;
-                let result = stmt
-                    .query_map(params![fetch_count], Self::map_history_entry)?
-                    .collect::<std::result::Result<Vec<_>, _>>()?;
-                result
-            }
-            (_, None) => {
-                let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
-                     FROM transcription_history
-                     ORDER BY id DESC",
-                )?;
-                let result = stmt
-                    .query_map([], Self::map_history_entry)?
-                    .collect::<std::result::Result<Vec<_>, _>>()?;
-                result
-            }
+        let mut clauses: Vec<String> = Vec::new();
+        let mut values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        if let Some(cursor_id) = cursor {
+            clauses.push(format!("id < ?{}", values.len() + 1));
+            values.push(Box::new(cursor_id));
+        }
+        if let Some(q) = query {
+            let pattern = format!("%{}%", q.replace('%', "\\%").replace('_', "\\_"));
+            let index = values.len() + 1;
+            clauses.push(format!(
+                "(transcription_text LIKE ?{i} ESCAPE '\\' OR post_processed_text LIKE ?{i} ESCAPE '\\' OR app_name LIKE ?{i} ESCAPE '\\')",
+                i = index
+            ));
+            values.push(Box::new(pattern));
+        }
+        let where_clause = if clauses.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {}", clauses.join(" AND "))
         };
+        let limit_clause = match limit {
+            Some(lim) => {
+                values.push(Box::new((lim + 1) as i64));
+                format!(" LIMIT ?{}", values.len())
+            }
+            None => String::new(),
+        };
+
+        let sql = format!(
+            "SELECT {} FROM transcription_history{} ORDER BY id DESC{}",
+            ENTRY_COLUMNS, where_clause, limit_clause
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let params: Vec<&dyn rusqlite::ToSql> = values.iter().map(|v| v.as_ref()).collect();
+        let mut entries: Vec<HistoryEntry> = stmt
+            .query_map(params.as_slice(), Self::map_history_entry)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
 
         let has_more = limit.is_some_and(|lim| entries.len() > lim);
         if has_more {
@@ -536,41 +574,36 @@ impl HistoryManager {
 
     #[cfg(test)]
     fn get_latest_entry_with_conn(conn: &Connection) -> Result<Option<HistoryEntry>> {
-        let mut stmt = conn.prepare(
-            "SELECT
-                id,
-                file_name,
-                timestamp,
-                saved,
-                title,
-                transcription_text,
-                post_processed_text,
-                post_process_prompt,
-                post_process_requested
-             FROM transcription_history
-             ORDER BY timestamp DESC
-             LIMIT 1",
-        )?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {} FROM transcription_history ORDER BY timestamp DESC LIMIT 1",
+            ENTRY_COLUMNS
+        ))?;
 
         let entry = stmt.query_row([], Self::map_history_entry).optional()?;
         Ok(entry)
     }
 
-    /// Get the latest entry with non-empty transcription text.
-    /// Compute usage statistics (counts and rough word totals).
-    pub fn get_stats(&self) -> Result<HistoryStats> {
+    /// Compute usage statistics (counts, word totals, speed and time saved).
+    /// `since` restricts the aggregate numbers to entries at or after that
+    /// unix timestamp; `None` means all time.
+    pub fn get_stats(&self, since: Option<i64>) -> Result<HistoryStats> {
         let conn = self.get_connection()?;
+        Self::get_stats_with_conn(&conn, since)
+    }
+
+    fn get_stats_with_conn(conn: &Connection, since: Option<i64>) -> Result<HistoryStats> {
         let start_of_day = Local::now()
             .date_naive()
             .and_hms_opt(0, 0, 0)
             .and_then(|dt| dt.and_local_timezone(Local).single())
             .map(|dt| dt.timestamp())
             .unwrap_or(0);
+        let since = since.unwrap_or(i64::MIN);
 
         let (total_entries, post_processed_entries, last_timestamp): (i64, i64, Option<i64>) = conn
             .query_row(
-                "SELECT COUNT(*), SUM(CASE WHEN post_processed_text IS NOT NULL THEN 1 ELSE 0 END), MAX(timestamp) FROM transcription_history",
-                [],
+                "SELECT COUNT(*), SUM(CASE WHEN post_processed_text IS NOT NULL THEN 1 ELSE 0 END), MAX(timestamp) FROM transcription_history WHERE timestamp >= ?1",
+                params![since],
                 |row| {
                     Ok((
                         row.get::<_, i64>(0)?,
@@ -581,26 +614,51 @@ impl HistoryManager {
             )?;
         let entries_today: i64 = conn.query_row(
             "SELECT COUNT(*) FROM transcription_history WHERE timestamp >= ?1",
-            params![start_of_day],
+            params![start_of_day.max(since)],
+            |row| row.get(0),
+        )?;
+        let apps_used: i64 = conn.query_row(
+            "SELECT COUNT(DISTINCT app_name) FROM transcription_history WHERE timestamp >= ?1 AND app_name IS NOT NULL AND app_name != ''",
+            params![since],
             |row| row.get(0),
         )?;
 
         let mut total_words: i64 = 0;
         let mut words_today: i64 = 0;
+        let mut total_duration_ms: i64 = 0;
+        let mut timed_words: i64 = 0;
         let mut stmt = conn.prepare(
-            "SELECT timestamp, COALESCE(post_processed_text, transcription_text) FROM transcription_history",
+            "SELECT timestamp, COALESCE(post_processed_text, transcription_text), duration_ms FROM transcription_history WHERE timestamp >= ?1",
         )?;
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        let rows = stmt.query_map(params![since], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<i64>>(2)?,
+            ))
         })?;
         for row in rows {
-            let (timestamp, text) = row?;
+            let (timestamp, text, duration_ms) = row?;
             let words = text.split_whitespace().count() as i64;
             total_words += words;
             if timestamp >= start_of_day {
                 words_today += words;
             }
+            if let Some(duration) = duration_ms.filter(|d| *d > 0) {
+                total_duration_ms += duration;
+                timed_words += words;
+            }
         }
+
+        let average_wpm = if total_duration_ms > 0 {
+            timed_words as f64 / (total_duration_ms as f64 / 60_000.0)
+        } else {
+            0.0
+        };
+        // Time it would have taken to type the same words, minus the time
+        // actually spent speaking (only counted when the duration is known).
+        let typing_ms = (total_words as f64 / TYPING_WPM * 60_000.0) as i64;
+        let time_saved_ms = (typing_ms - total_duration_ms).max(0);
 
         Ok(HistoryStats {
             total_entries,
@@ -609,6 +667,10 @@ impl HistoryManager {
             words_today,
             post_processed_entries,
             last_timestamp,
+            total_duration_ms,
+            apps_used,
+            average_wpm,
+            time_saved_ms,
         })
     }
 
@@ -618,22 +680,10 @@ impl HistoryManager {
     }
 
     fn get_latest_completed_entry_with_conn(conn: &Connection) -> Result<Option<HistoryEntry>> {
-        let mut stmt = conn.prepare(
-            "SELECT
-                id,
-                file_name,
-                timestamp,
-                saved,
-                title,
-                transcription_text,
-                post_processed_text,
-                post_process_prompt,
-                post_process_requested
-             FROM transcription_history
-             WHERE transcription_text != ''
-             ORDER BY timestamp DESC
-             LIMIT 1",
-        )?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {} FROM transcription_history WHERE transcription_text != '' ORDER BY timestamp DESC LIMIT 1",
+            ENTRY_COLUMNS
+        ))?;
 
         let entry = stmt.query_row([], Self::map_history_entry).optional()?;
         Ok(entry)
@@ -694,20 +744,10 @@ impl HistoryManager {
 
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
-        let mut stmt = conn.prepare(
-            "SELECT
-                id,
-                file_name,
-                timestamp,
-                saved,
-                title,
-                transcription_text,
-                post_processed_text,
-                post_process_prompt,
-                post_process_requested
-             FROM transcription_history
-             WHERE id = ?1",
-        )?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {} FROM transcription_history WHERE id = ?1",
+            ENTRY_COLUMNS
+        ))?;
 
         let entry = stmt.query_row([id], Self::map_history_entry).optional()?;
 
@@ -773,7 +813,9 @@ mod tests {
                 transcription_text TEXT NOT NULL,
                 post_processed_text TEXT,
                 post_process_prompt TEXT,
-                post_process_requested BOOLEAN NOT NULL DEFAULT 0
+                post_process_requested BOOLEAN NOT NULL DEFAULT 0,
+                app_name TEXT,
+                duration_ms INTEGER
             );",
         )
         .expect("create transcription_history table");
@@ -781,6 +823,17 @@ mod tests {
     }
 
     fn insert_entry(conn: &Connection, timestamp: i64, text: &str, post_processed: Option<&str>) {
+        insert_entry_full(conn, timestamp, text, post_processed, None, None);
+    }
+
+    fn insert_entry_full(
+        conn: &Connection,
+        timestamp: i64,
+        text: &str,
+        post_processed: Option<&str>,
+        app_name: Option<&str>,
+        duration_ms: Option<i64>,
+    ) {
         conn.execute(
             "INSERT INTO transcription_history (
                 file_name,
@@ -790,8 +843,10 @@ mod tests {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                post_process_requested,
+                app_name,
+                duration_ms
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 format!("whispersm-{}.wav", timestamp),
                 timestamp,
@@ -801,9 +856,36 @@ mod tests {
                 post_processed,
                 Option::<String>::None,
                 false,
+                app_name,
+                duration_ms,
             ],
         )
         .expect("insert history entry");
+    }
+
+    #[test]
+    fn stats_compute_speed_apps_and_time_saved() {
+        let conn = setup_conn();
+        // 120 words in 60 seconds => 120 WPM
+        let text = vec!["word"; 120].join(" ");
+        insert_entry_full(&conn, 100, &text, None, Some("Slack"), Some(60_000));
+        insert_entry_full(&conn, 200, "hello world", None, Some("Mail"), None);
+        insert_entry_full(&conn, 300, "again", None, Some("Slack"), Some(1_000));
+
+        let stats = HistoryManager::get_stats_with_conn(&conn, None).expect("stats");
+        assert_eq!(stats.total_entries, 3);
+        assert_eq!(stats.total_words, 123);
+        assert_eq!(stats.apps_used, 2);
+        assert_eq!(stats.total_duration_ms, 61_000);
+        // 121 timed words over 61s
+        assert!((stats.average_wpm - 121.0 / (61.0 / 60.0)).abs() < 0.01);
+        // typing 123 words at 40 WPM = 184.5s, minus 61s spoken
+        assert_eq!(stats.time_saved_ms, 184_500 - 61_000);
+
+        let recent = HistoryManager::get_stats_with_conn(&conn, Some(250)).expect("stats");
+        assert_eq!(recent.total_entries, 1);
+        assert_eq!(recent.total_words, 1);
+        assert_eq!(recent.apps_used, 1);
     }
 
     #[test]

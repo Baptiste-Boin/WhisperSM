@@ -33,7 +33,7 @@ const CREDITS: { name: string; url: string; descriptionKey: string }[] = [
     descriptionKey: "about.credits.candle",
   },
   {
-    name: "Qwen 2.5 · Llama 3.2",
+    name: "Qwen 2.5 · Llama · Mistral",
     url: "https://huggingface.co/Qwen",
     descriptionKey: "about.credits.models",
   },

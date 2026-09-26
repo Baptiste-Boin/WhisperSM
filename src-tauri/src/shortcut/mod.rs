@@ -23,8 +23,8 @@ use tauri_plugin_autostart::ManagerExt;
 use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
     self, get_settings, AutoSubmitKey, ClipboardHandling, KeyboardImplementation, LLMPrompt,
-    OverlayPosition, PasteMethod, ShortcutBinding, SoundTheme, TypingTool,
-    APPLE_INTELLIGENCE_PROVIDER_ID,
+    OverlayPosition, OverlayStyle, PasteMethod, ShortcutBinding, SoundTheme, ThemePreference,
+    TypingTool, VocabularyReplacement, APPLE_INTELLIGENCE_PROVIDER_ID, VOICE_TO_TEXT_MODE_ID,
 };
 use crate::tray;
 
@@ -641,6 +641,95 @@ pub fn change_overlay_position_setting(app: AppHandle, position: String) -> Resu
     Ok(())
 }
 
+/// Apply the persisted theme preference to every window (native chrome).
+/// The web content reads the same setting and sets `data-theme` itself.
+pub fn apply_theme(app: &AppHandle) {
+    let settings = settings::get_settings(app);
+    let theme = match settings.theme {
+        ThemePreference::Auto => None,
+        ThemePreference::Light => Some(tauri::Theme::Light),
+        ThemePreference::Dark => Some(tauri::Theme::Dark),
+    };
+    for window in app.webview_windows().values() {
+        if let Err(e) = window.set_theme(theme) {
+            warn!(
+                "Failed to apply theme to window '{}': {}",
+                window.label(),
+                e
+            );
+        }
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_theme_setting(app: AppHandle, theme: ThemePreference) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.theme = theme;
+    settings::write_settings(&app, settings);
+    apply_theme(&app);
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({ "setting": "theme", "value": theme }),
+    );
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_overlay_style_setting(app: AppHandle, style: OverlayStyle) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.overlay_style = style;
+    settings::write_settings(&app, settings);
+    crate::overlay::apply_always_show(&app);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_overlay_always_show_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.overlay_always_show = enabled;
+    settings::write_settings(&app, settings);
+    crate::overlay::apply_always_show(&app);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_silence_removal_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.silence_removal = enabled;
+    settings::write_settings(&app, settings);
+    // The recorder is built with or without VAD; rebuild it so the change
+    // applies to the next recording.
+    let audio_manager =
+        app.state::<std::sync::Arc<crate::managers::audio::AudioRecordingManager>>();
+    audio_manager
+        .rebuild_recorder()
+        .map_err(|e| format!("Failed to apply silence removal setting: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_vocabulary_replacements(
+    app: AppHandle,
+    replacements: Vec<VocabularyReplacement>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.vocabulary_replacements = replacements
+        .into_iter()
+        .map(|r| VocabularyReplacement {
+            from: r.from.trim().to_string(),
+            to: r.to.trim().to_string(),
+        })
+        .filter(|r| !r.from.is_empty() && !r.to.is_empty())
+        .collect();
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_debug_mode_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
@@ -1227,6 +1316,21 @@ pub fn delete_llm_model(app: AppHandle, id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Speech model overrides must point to a known model.
+fn validate_speech_model(app: &AppHandle, speech_model_id: &Option<String>) -> Result<(), String> {
+    let Some(id) = speech_model_id
+        .as_deref()
+        .filter(|id| !id.trim().is_empty())
+    else {
+        return Ok(());
+    };
+    let model_manager = app.state::<std::sync::Arc<crate::managers::model::ModelManager>>();
+    if model_manager.get_model_info(id).is_none() {
+        return Err(format!("Speech model '{}' not found", id));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn add_post_process_action(
@@ -1236,28 +1340,36 @@ pub fn add_post_process_action(
     llm_model_id: Option<String>,
     icon: String,
     trigger_key: Option<u8>,
+    speech_model_id: Option<String>,
 ) -> Result<settings::PostProcessAction, String> {
     let mut settings = settings::get_settings(&app);
 
     let name = name.trim().to_string();
+    // An empty prompt makes a voice-only mode (no language model runs).
     let prompt = prompt.trim().to_string();
-    if name.is_empty() || prompt.is_empty() {
-        return Err("Name and prompt are required".to_string());
+    if name.is_empty() {
+        return Err("Name is required".to_string());
     }
     validate_trigger_key(&settings, trigger_key, None)?;
+    validate_speech_model(&app, &speech_model_id)?;
 
     let icon = icon.trim().to_string();
     let action = settings::PostProcessAction {
         id: format!("act_{}", chrono::Utc::now().timestamp_millis()),
         name: name.clone(),
+        llm_model_id: if prompt.is_empty() {
+            None
+        } else {
+            llm_model_id
+        },
         prompt,
-        llm_model_id,
         icon: if icon.is_empty() {
             settings::default_action_icon()
         } else {
             icon
         },
         trigger_key,
+        speech_model_id: speech_model_id.filter(|id| !id.trim().is_empty()),
     };
 
     settings.post_process_actions.push(action.clone());
@@ -1290,15 +1402,17 @@ pub fn update_post_process_action(
     llm_model_id: Option<String>,
     icon: String,
     trigger_key: Option<u8>,
+    speech_model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
     let name = name.trim().to_string();
     let prompt = prompt.trim().to_string();
-    if name.is_empty() || prompt.is_empty() {
-        return Err("Name and prompt are required".to_string());
+    if name.is_empty() {
+        return Err("Name is required".to_string());
     }
     validate_trigger_key(&settings, trigger_key, Some(&id))?;
+    validate_speech_model(&app, &speech_model_id)?;
 
     let icon = icon.trim().to_string();
     let Some(action) = settings
@@ -1310,14 +1424,19 @@ pub fn update_post_process_action(
     };
 
     action.name = name.clone();
+    action.llm_model_id = if prompt.is_empty() {
+        None
+    } else {
+        llm_model_id
+    };
     action.prompt = prompt;
-    action.llm_model_id = llm_model_id;
     action.icon = if icon.is_empty() {
         settings::default_action_icon()
     } else {
         icon
     };
     action.trigger_key = trigger_key;
+    action.speech_model_id = speech_model_id.filter(|id| !id.trim().is_empty());
 
     // Keep the binding entry's display name in sync
     let binding_id = settings::action_binding_id(&id);
@@ -1334,12 +1453,21 @@ pub fn update_post_process_action(
 pub fn delete_post_process_action(app: AppHandle, id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
+    if id == VOICE_TO_TEXT_MODE_ID {
+        return Err("The built-in Voice to text mode cannot be deleted".to_string());
+    }
+
     let original_len = settings.post_process_actions.len();
     settings
         .post_process_actions
         .retain(|action| action.id != id);
     if settings.post_process_actions.len() == original_len {
         return Err(format!("Action '{}' not found", id));
+    }
+
+    // Deleting the active mode falls back to plain voice to text.
+    if settings.active_mode_id.as_deref() == Some(id.as_str()) {
+        settings.active_mode_id = Some(VOICE_TO_TEXT_MODE_ID.to_string());
     }
 
     // Unregister and remove the per-action shortcut binding

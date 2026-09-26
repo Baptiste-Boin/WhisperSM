@@ -1,116 +1,77 @@
-import React, { lazy, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
 import {
-  Boxes,
+  BookOpen,
   FlaskConical,
   History,
   House,
-  Info,
-  Settings2,
+  LibraryBig,
+  Settings,
   Sparkles,
+  Volume2,
 } from "lucide-react";
-import WhisperSMLogo from "./icons/WhisperSMLogo";
-import { useSettings } from "../hooks/useSettings";
-import { HomePage } from "../pages/HomePage";
-import ModelSelector from "./model-selector";
+import type { LucideIcon } from "lucide-react";
+import type { AppSection } from "@/lib/navigation";
+import { useSettings } from "@/hooks/useSettings";
+import { IconTile, type TileColor } from "./ui/IconTile";
 import UpdateChecker from "./update-checker";
 
-// The Home page is eager since it is shown on launch; the rest load on
-// demand so their code is not parsed at startup.
-const ModesPage = lazy(() =>
-  import("../pages/ModesPage").then((m) => ({ default: m.ModesPage })),
-);
-const ModelsPage = lazy(() =>
-  import("../pages/ModelsPage").then((m) => ({ default: m.ModelsPage })),
-);
-const HistoryPage = lazy(() =>
-  import("../pages/HistoryPage").then((m) => ({ default: m.HistoryPage })),
-);
-const SettingsPage = lazy(() =>
-  import("../pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
-);
-const AboutPage = lazy(() =>
-  import("../pages/AboutPage").then((m) => ({ default: m.AboutPage })),
-);
-const DebugSettings = lazy(() =>
-  import("./settings/debug/DebugSettings").then((m) => ({
-    default: m.DebugSettings,
-  })),
-);
-
-export type SidebarSection = keyof typeof SECTIONS_CONFIG;
-
-interface IconProps {
-  width?: number | string;
-  height?: number | string;
-  size?: number | string;
-  className?: string;
-  [key: string]: any;
-}
-
-interface SectionConfig {
+interface SidebarItem {
+  id: AppSection;
   labelKey: string;
-  icon: React.ComponentType<IconProps>;
-  component: React.ComponentType;
-  enabled: (settings: any) => boolean;
+  icon: LucideIcon;
+  color: TileColor;
+  /** Only shown when debug mode is on. */
+  debugOnly?: boolean;
 }
 
-export const SECTIONS_CONFIG = {
-  home: {
-    labelKey: "sidebar.home",
-    icon: House,
-    component: HomePage,
-    enabled: () => true,
+/** Sidebar entries, in display order (mirrors the reference app). */
+export const SIDEBAR_ITEMS: SidebarItem[] = [
+  { id: "home", labelKey: "sidebar.home", icon: House, color: "orange" },
+  { id: "modes", labelKey: "sidebar.modes", icon: Sparkles, color: "blue" },
+  {
+    id: "vocabulary",
+    labelKey: "sidebar.vocabulary",
+    icon: BookOpen,
+    color: "blue",
   },
-  modes: {
-    labelKey: "sidebar.modes",
-    icon: Sparkles,
-    component: ModesPage,
-    enabled: () => true,
+  {
+    id: "configuration",
+    labelKey: "sidebar.configuration",
+    icon: Settings,
+    color: "gray",
   },
-  models: {
-    labelKey: "sidebar.models",
-    icon: Boxes,
-    component: ModelsPage,
-    enabled: () => true,
+  { id: "sound", labelKey: "sidebar.sound", icon: Volume2, color: "gray" },
+  {
+    id: "library",
+    labelKey: "sidebar.library",
+    icon: LibraryBig,
+    color: "gray",
   },
-  history: {
+  {
+    id: "history",
     labelKey: "sidebar.history",
     icon: History,
-    component: HistoryPage,
-    enabled: () => true,
+    color: "purple",
   },
-  settings: {
-    labelKey: "sidebar.settings",
-    icon: Settings2,
-    component: SettingsPage,
-    enabled: () => true,
-  },
-  debug: {
+  {
+    id: "debug",
     labelKey: "sidebar.debug",
     icon: FlaskConical,
-    component: DebugSettings,
-    enabled: (settings) => settings?.debug_mode ?? false,
+    color: "green",
+    debugOnly: true,
   },
-  about: {
-    labelKey: "sidebar.about",
-    icon: Info,
-    component: AboutPage,
-    enabled: () => true,
-  },
-} as const satisfies Record<string, SectionConfig>;
+];
 
-/** Map legacy section ids (emitted by the backend or old links) to new ones. */
-export const LEGACY_SECTION_ALIASES: Record<string, SidebarSection> = {
-  general: "settings",
-  advanced: "settings",
-  postprocessing: "modes",
+/** Sections that highlight a sidebar entry other than themselves. */
+const PARENT_SECTION: Partial<Record<AppSection, AppSection>> = {
+  advanced: "configuration",
 };
 
 interface SidebarProps {
-  activeSection: SidebarSection;
-  onSectionChange: (section: SidebarSection) => void;
+  activeSection: AppSection;
+  onSectionChange: (section: AppSection) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -120,7 +81,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const { settings } = useSettings();
   const [version, setVersion] = useState("");
-  const versionLabel = version ? `v${version}` : "";
 
   useEffect(() => {
     getVersion()
@@ -128,61 +88,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
       .catch(() => setVersion(""));
   }, []);
 
-  const availableSections = Object.entries(SECTIONS_CONFIG)
-    .filter(([_, config]) => config.enabled(settings))
-    .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
+  const debugMode = settings?.debug_mode ?? false;
+  const highlighted = PARENT_SECTION[activeSection] ?? activeSection;
 
   return (
-    <aside className="flex flex-col w-[212px] shrink-0 h-full bg-sidebar border-e border-border">
-      <div className="px-4 pt-5 pb-4">
-        <WhisperSMLogo size={28} />
-      </div>
+    <aside className="flex flex-col w-[236px] shrink-0 h-full bg-sidebar border-e border-border">
+      {/* Space for the traffic lights on macOS */}
+      <div className="h-[52px] shrink-0" data-tauri-drag-region />
 
-      <nav className="flex flex-col gap-0.5 px-2.5 flex-1 overflow-y-auto">
-        {availableSections.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.id;
-          return (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => onSectionChange(section.id)}
-              className={`group flex items-center gap-2.5 px-2.5 h-9 w-full rounded-lg text-sm font-medium transition-colors text-start ${
-                isActive
-                  ? "bg-surface text-text shadow-[0_1px_2px_rgba(15,15,30,0.06)] border border-border"
-                  : "text-text-muted hover:text-text hover:bg-surface/60 border border-transparent"
-              }`}
-              title={t(section.labelKey)}
-            >
-              <Icon
-                width={17}
-                height={17}
-                className={`shrink-0 ${isActive ? "text-accent" : "text-text-muted group-hover:text-text"}`}
-              />
-              <span className="truncate">{t(section.labelKey)}</span>
-            </button>
-          );
-        })}
+      <nav className="flex flex-col gap-1 px-3 flex-1 overflow-y-auto">
+        {SIDEBAR_ITEMS.filter((item) => !item.debugOnly || debugMode).map(
+          (item) => {
+            const isActive = highlighted === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSectionChange(item.id)}
+                className={`flex items-center gap-3 px-2.5 h-[42px] w-full rounded-xl text-[15px] font-medium transition-colors text-start ${
+                  isActive
+                    ? "bg-surface text-text shadow-[0_1px_3px_rgba(15,15,30,0.08)]"
+                    : "text-text hover:bg-surface/60"
+                }`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <IconTile icon={item.icon} color={item.color} size={26} />
+                <span className="truncate">{t(item.labelKey)}</span>
+              </button>
+            );
+          },
+        )}
       </nav>
 
-      <div className="px-3 pb-3 pt-2 space-y-2 border-t border-border">
-        <div className="wsm-card px-3 py-2 text-xs">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-text-muted mb-1">
-            {t("sidebar.speechModel")}
-          </p>
-          <div className="text-text">
-            <ModelSelector />
-          </div>
+      <div className="px-4 pb-4 pt-3 flex flex-col items-center gap-2">
+        <div className="text-[11px] text-text-muted truncate max-w-full">
+          <UpdateChecker />
         </div>
-        <div className="flex flex-col gap-0.5 px-1 text-[11px] text-text-muted">
-          <div className="truncate">
-            <UpdateChecker />
-          </div>
-          {versionLabel && (
-            <span className="tabular-nums font-mono">{versionLabel}</span>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => onSectionChange("about")}
+          className={`w-full h-[52px] rounded-2xl border border-border bg-surface/70 hover:bg-surface transition-colors flex items-center justify-center gap-2 text-[17px] font-medium ${
+            activeSection === "about" ? "border-accent/50" : ""
+          }`}
+          title={t("sidebar.about")}
+        >
+          <span className="text-text-muted">{t("sidebar.appName")}</span>
+          <span className="text-[10px] font-bold tracking-wide px-1.5 h-4 rounded-md bg-surface-3 text-text-muted inline-flex items-center">
+            {t("sidebar.footerBadge")}
+          </span>
+        </button>
+        <span className="text-[11px] text-text-muted tabular-nums">
+          {t("sidebar.footerTagline")}
+          {version ? ` · v${version}` : ""}
+        </span>
       </div>
     </aside>
   );
 };
+
+export default Sidebar;

@@ -47,12 +47,26 @@ pub fn handle_shortcut_event(
 ) {
     let settings = get_settings(app);
 
-    // Transcribe bindings are handled by the coordinator.
+    // Transcribe bindings are handled by the coordinator. The dedicated
+    // push-to-talk shortcut always records while held, whatever the
+    // push_to_talk preference says about the main shortcut.
     if is_transcribe_binding(binding_id) {
+        let push_to_talk = binding_id == "push_to_talk" || settings.push_to_talk;
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-            coordinator.send_input(binding_id, hotkey_string, is_pressed, settings.push_to_talk);
+            coordinator.send_input(binding_id, hotkey_string, is_pressed, push_to_talk);
         } else {
             warn!("TranscriptionCoordinator is not initialized");
+        }
+        return;
+    }
+
+    // Change mode: cycle to the next mode
+    if binding_id == "change_mode" {
+        if is_pressed {
+            match crate::commands::modes::cycle_active_mode_internal(app) {
+                Ok(mode) => log::info!("Active mode changed to '{}' via shortcut", mode.name),
+                Err(e) => warn!("Failed to change mode: {}", e),
+            }
         }
         return;
     }

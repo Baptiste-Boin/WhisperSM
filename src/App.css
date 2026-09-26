@@ -34,35 +34,42 @@
     "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Surfaces */
-  --color-background: #f5f5f8;
+  --color-background: #f5f5f7;
   --color-surface: #ffffff;
-  --color-surface-2: #f1f1f5;
-  --color-surface-3: #e8e8ee;
-  --color-sidebar: #ececf2;
+  --color-surface-2: #f2f2f5;
+  --color-surface-3: #e6e6eb;
+  --color-sidebar: #f0f0f3;
   --color-border: rgba(15, 15, 30, 0.08);
   --color-border-strong: rgba(15, 15, 30, 0.16);
 
   /* Text */
-  --color-text: #101018;
-  --color-text-muted: #6b6b7b;
+  --color-text: #1c1c1e;
+  --color-text-muted: #6e6e78;
   --color-text-stroke: #f6f6f6;
   --color-mid-gray: #808090;
 
-  /* Accent */
-  --color-accent: #6d5cff;
-  --color-accent-2: #2e8bff;
-  --color-accent-soft: rgba(109, 92, 255, 0.12);
+  /* Accent (system blue, like the reference app) */
+  --color-accent: #0a7aff;
+  --color-accent-2: #3b8cff;
+  --color-accent-soft: rgba(10, 122, 255, 0.12);
   --color-on-accent: #ffffff;
 
   /* Legacy aliases used by older components */
-  --color-logo-primary: #6d5cff;
-  --color-logo-stroke: #3b2fb8;
-  --color-background-ui: #6d5cff;
+  --color-logo-primary: #0a7aff;
+  --color-logo-stroke: #0b5fcc;
+  --color-background-ui: #0a7aff;
 
   /* Status */
-  --color-success: #22c55e;
+  --color-success: #34c759;
   --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-danger: #ff3b30;
+
+  /* Icon tiles (sidebar / get started) */
+  --color-tile-orange: #ff8a34;
+  --color-tile-blue: #2d7dff;
+  --color-tile-purple: #7c5cff;
+  --color-tile-gray: #6b6b78;
+  --color-tile-green: #34c759;
 
   --radius-card: 14px;
   --shadow-card:
@@ -93,31 +100,60 @@
   color-scheme: light;
 }
 
+/*
+ * Dark surfaces. Applied when the user picked "Dark", or when the system is
+ * dark and the user did not force "Light" (data-theme is unset for "Auto").
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #0f0f14;
-    --color-surface: #17171e;
-    --color-surface-2: #1e1e27;
-    --color-surface-3: #262631;
-    --color-sidebar: #121218;
+  :root:not([data-theme="light"]) {
+    --color-background: #111114;
+    --color-surface: #1b1b20;
+    --color-surface-2: #23232a;
+    --color-surface-3: #2c2c35;
+    --color-sidebar: #161619;
     --color-border: rgba(255, 255, 255, 0.08);
     --color-border-strong: rgba(255, 255, 255, 0.16);
 
-    --color-text: #f4f4f8;
-    --color-text-muted: #9a9aab;
+    --color-text: #f4f4f6;
+    --color-text-muted: #9a9aa6;
     --color-mid-gray: #8a8a9a;
 
-    --color-accent: #8b7cff;
-    --color-accent-2: #4f9dff;
-    --color-accent-soft: rgba(139, 124, 255, 0.16);
-    --color-logo-primary: #8b7cff;
-    --color-logo-stroke: #c9c1ff;
-    --color-background-ui: #7c6bff;
+    --color-accent: #3d8bff;
+    --color-accent-2: #5fa0ff;
+    --color-accent-soft: rgba(61, 139, 255, 0.18);
+    --color-logo-primary: #3d8bff;
+    --color-logo-stroke: #9cc4ff;
+    --color-background-ui: #3d8bff;
 
     --shadow-card:
       0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -20px rgba(0, 0, 0, 0.7);
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --color-background: #111114;
+  --color-surface: #1b1b20;
+  --color-surface-2: #23232a;
+  --color-surface-3: #2c2c35;
+  --color-sidebar: #161619;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  --color-text: #f4f4f6;
+  --color-text-muted: #9a9aa6;
+  --color-mid-gray: #8a8a9a;
+
+  --color-accent: #3d8bff;
+  --color-accent-2: #5fa0ff;
+  --color-accent-soft: rgba(61, 139, 255, 0.18);
+  --color-logo-primary: #3d8bff;
+  --color-logo-stroke: #9cc4ff;
+  --color-background-ui: #3d8bff;
+
+  --shadow-card:
+    0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -20px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
 }
 
 html,
@@ -164,11 +200,21 @@ body {
     -webkit-text-stroke: 2px var(--color-text-stroke);
   }
 
+  /* Card: the rounded white panel used for every settings group */
   .wsm-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
+  }
+
+  /* Section title above a card ("Appearance", "Keyboard Shortcuts"…) */
+  .wsm-section-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    padding: 0 2px;
+    margin-bottom: 8px;
   }
 
   .wsm-gradient {
@@ -190,6 +236,7 @@ body {
     color: transparent;
   }
 
+  /* Keycap, as in the reference app's shortcut rows */
   .wsm-kbd {
     display: inline-flex;
     align-items: center;
@@ -200,7 +247,7 @@ body {
     border-radius: 0.5rem;
     border: 1px solid var(--color-border-strong);
     border-bottom-width: 2px;
-    background: var(--color-surface);
+    background: var(--color-surface-2);
     font-family: var(--font-sans);
     font-size: 0.8rem;
     font-weight: 600;
@@ -210,6 +257,30 @@ body {
 
   .wsm-fade-in {
     animation: wsm-fade-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Rows inside a card (settings rows, model rows) */
+  .wsm-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    min-height: 56px;
+  }
+
+  .wsm-row + .wsm-row {
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Native-looking select used in the header microphone picker */
+  .wsm-select-plain {
+    appearance: none;
+    background: transparent;
+    border: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
   }
 }
 

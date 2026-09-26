@@ -1,13 +1,16 @@
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
+use crate::audio_toolkit::constants::WHISPER_SAMPLE_RATE;
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error};
+use crate::frontmost_app;
 use crate::local_llm::{LocalLlmManager, LOCAL_LLM_PROVIDER_ID};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings::{
-    get_settings, AppSettings, PostProcessAction, APPLE_INTELLIGENCE_PROVIDER_ID,
+    get_settings, AppSettings, PostProcessAction, ACTION_BINDING_PREFIX,
+    APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -33,6 +36,27 @@ struct RecordingErrorEvent {
 /// Id of the post-process action selected for the in-flight transcription,
 /// set by the coordinator right before the pipeline stops.
 pub struct ActiveActionState(pub Mutex<Option<String>>);
+
+/// Name of the application that was frontmost when the current recording
+/// started (the app the text will be pasted into).
+pub struct RecordingContextState(pub Mutex<Option<String>>);
+
+/// The mode that applies to a recording started from `binding_id`: the
+/// per-mode shortcut's mode, the default AI mode for the AI shortcut, or the
+/// active mode for the main shortcuts.
+fn mode_for_binding<'a>(
+    settings: &'a AppSettings,
+    binding_id: &str,
+) -> Option<&'a PostProcessAction> {
+    if let Some(action_id) = binding_id.strip_prefix(ACTION_BINDING_PREFIX) {
+        return settings.post_process_action(action_id);
+    }
+    match binding_id {
+        "transcribe" | "push_to_talk" => settings.active_mode(),
+        "transcribe_with_post_process" => settings.default_post_process_action(),
+        _ => None,
+    }
+}
 
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
 /// transcription pipeline finishes — whether it completes normally or panics.
@@ -402,9 +426,21 @@ impl ShortcutAction for TranscribeAction {
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
-        // Load model in the background
+        // Remember which app the text will be pasted into (for history stats).
+        let frontmost = frontmost_app::frontmost_app_name();
+        if let Some(state) = app.try_state::<RecordingContextState>() {
+            if let Ok(mut guard) = state.0.lock() {
+                *guard = frontmost;
+            }
+        }
+
+        // Load the speech model in the background. The mode that applies to
+        // this shortcut may override the app-wide selection.
+        let settings = get_settings(app);
+        let speech_override =
+            mode_for_binding(&settings, binding_id).and_then(|mode| mode.speech_model_id.clone());
         let tm = app.state::<Arc<TranscriptionManager>>();
-        tm.initiate_model_load();
+        tm.initiate_model_load_with(speech_override);
 
         let binding_id = binding_id.to_string();
         change_tray_icon(app, TrayIconState::Recording);
@@ -413,7 +449,6 @@ impl ShortcutAction for TranscribeAction {
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
         // Get the microphone mode to determine audio feedback timing
-        let settings = get_settings(app);
         let is_always_on = settings.always_on_microphone;
         debug!("Microphone mode - always_on: {}", is_always_on);
 
@@ -520,6 +555,10 @@ impl ShortcutAction for TranscribeAction {
         let binding_id = binding_id.to_string();
         let post_process = self.post_process;
 
+        let app_name = app
+            .try_state::<RecordingContextState>()
+            .and_then(|state| state.0.lock().ok().and_then(|mut guard| guard.take()));
+
         let selected_action_id =
             app.try_state::<ActiveActionState>()
                 .and_then(|s| match s.0.lock() {
@@ -552,6 +591,7 @@ impl ShortcutAction for TranscribeAction {
                 } else {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
+                    let duration_ms = (sample_count as i64 * 1000) / WHISPER_SAMPLE_RATE as i64;
                     let file_name = format!("whispersm-{}.wav", chrono::Utc::now().timestamp());
                     let wav_path = hm.recordings_dir().join(&file_name);
                     let wav_path_for_verify = wav_path.clone();
@@ -601,13 +641,18 @@ impl ShortcutAction for TranscribeAction {
                             // Resolve the post-process action: explicitly selected
                             // during recording (trigger key or per-action shortcut),
                             // otherwise the default action when the generic
-                            // post-process shortcut was used.
+                            // post-process shortcut was used, otherwise the active
+                            // mode for the main shortcuts (when it uses AI).
+                            let is_main_shortcut =
+                                binding_id == "transcribe" || binding_id == "push_to_talk";
                             let action = selected_action_id
                                 .as_deref()
                                 .and_then(|id| settings.post_process_action(id))
                                 .or_else(|| {
                                     if post_process {
                                         settings.default_post_process_action()
+                                    } else if is_main_shortcut {
+                                        settings.active_mode().filter(|mode| !mode.is_voice_only())
                                     } else {
                                         None
                                     }
@@ -646,6 +691,8 @@ impl ShortcutAction for TranscribeAction {
                                     post_process_requested,
                                     processed.post_processed_text.clone(),
                                     processed.post_process_prompt.clone(),
+                                    app_name.clone(),
+                                    Some(duration_ms),
                                 ) {
                                     error!("Failed to save history entry: {}", err);
                                 }
@@ -686,6 +733,8 @@ impl ShortcutAction for TranscribeAction {
                                     post_process,
                                     None,
                                     None,
+                                    app_name.clone(),
+                                    Some(duration_ms),
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
@@ -757,6 +806,12 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     map.insert(
         "transcribe_with_post_process".to_string(),
         Arc::new(TranscribeAction { post_process: true }) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "push_to_talk".to_string(),
+        Arc::new(TranscribeAction {
+            post_process: false,
+        }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "cancel".to_string(),

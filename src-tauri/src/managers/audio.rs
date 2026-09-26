@@ -184,15 +184,19 @@ fn create_audio_recorder(
     app_handle: &tauri::AppHandle,
     is_paused: Arc<AtomicBool>,
 ) -> Result<AudioRecorder, anyhow::Error> {
-    let silero = SileroVad::new(vad_path, 0.3)
-        .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
-    let smoothed_vad = SmoothedVad::new(Box::new(silero), 15, 15, 2);
+    // Recorder with optional VAD (the "Silence removal" setting) plus a
+    // spectrum-level callback that forwards updates to the frontend.
+    let mut recorder = AudioRecorder::new()
+        .map_err(|e| anyhow::anyhow!("Failed to create AudioRecorder: {}", e))?;
 
-    // Recorder with VAD plus a spectrum-level callback that forwards updates to
-    // the frontend.
-    let recorder = AudioRecorder::new()
-        .map_err(|e| anyhow::anyhow!("Failed to create AudioRecorder: {}", e))?
-        .with_vad(Box::new(smoothed_vad))
+    if get_settings(app_handle).silence_removal {
+        let silero = SileroVad::new(vad_path, 0.3)
+            .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
+        let smoothed_vad = SmoothedVad::new(Box::new(silero), 15, 15, 2);
+        recorder = recorder.with_vad(Box::new(smoothed_vad));
+    }
+
+    let recorder = recorder
         .with_pause_flag(is_paused.clone())
         .with_level_callback({
             let app_handle = app_handle.clone();
@@ -397,6 +401,25 @@ impl AudioRecordingManager {
             "Microphone stream initialized in {:?}",
             start_time.elapsed()
         );
+        Ok(())
+    }
+
+    /// Drop the cached recorder so the next stream picks up recorder-level
+    /// settings (e.g. silence removal). No-op while a recording is running:
+    /// the change then applies to the following recording.
+    pub fn rebuild_recorder(&self) -> Result<(), anyhow::Error> {
+        if self.is_recording() {
+            return Ok(());
+        }
+        self.stop_microphone_stream();
+        {
+            let mut recorder = self.recorder.lock().unwrap();
+            *recorder = None;
+        }
+        let always_on = matches!(*self.mode.lock().unwrap(), MicrophoneMode::AlwaysOn);
+        if always_on {
+            self.start_microphone_stream()?;
+        }
         Ok(())
     }
 

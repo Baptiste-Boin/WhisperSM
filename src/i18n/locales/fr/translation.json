@@ -19,7 +19,16 @@
     "home": "Accueil",
     "modes": "Modes",
     "settings": "Réglages",
-    "speechModel": "Modèle vocal"
+    "speechModel": "Modèle vocal",
+    "vocabulary": "Vocabulaire",
+    "configuration": "Configuration",
+    "sound": "Son",
+    "library": "Bibliothèque de modèles",
+    "appName": "WhisperSM",
+    "footerBadge": "OSS",
+    "footerTagline": "Gratuit et open source",
+    "collapse": "Masquer la barre latérale",
+    "expand": "Afficher la barre latérale"
   },
   "onboarding": {
     "subtitle": "Pour commencer, choisissez un modèle de transcription",
@@ -42,19 +51,19 @@
         "description": "Bonne précision, vitesse moyenne"
       },
       "turbo": {
-        "name": "Whisper Turbo",
+        "name": "Whisper Large v3 Turbo",
         "description": "Équilibre entre précision et vitesse."
       },
       "large": {
-        "name": "Whisper Large",
+        "name": "Whisper Large v3",
         "description": "Bonne précision, mais lent."
       },
       "parakeet-tdt-0.6b-v2": {
-        "name": "Parakeet V2",
+        "name": "Parakeet",
         "description": "Anglais uniquement. Le meilleur modèle pour les anglophones."
       },
       "parakeet-tdt-0.6b-v3": {
-        "name": "Parakeet V3",
+        "name": "Parakeet Multilanguage",
         "description": "Rapide et précis"
       },
       "moonshine-base": {
@@ -724,7 +733,13 @@
     "off": "Désactivé",
     "yes": "Oui",
     "no": "Non",
-    "noOptionsFound": "Aucune option trouvée"
+    "noOptionsFound": "Aucune option trouvée",
+    "back": "Retour",
+    "search": "Rechercher",
+    "done": "Terminé",
+    "learnMore": "En savoir plus",
+    "none": "Aucun",
+    "unknown": "Inconnu"
   },
   "accessibility": {
     "permissionsRequired": "Autorisations d'accessibilité requises",
@@ -753,9 +768,11 @@
     "description": "Changer la langue de l'interface de WhisperSM"
   },
   "overlay": {
-    "transcribing": "Transcription...",
-    "processing": "Traitement...",
-    "cancelConfirm": "Esc pour annuler"
+    "transcribing": "Transcription…",
+    "processing": "Traitement…",
+    "cancelConfirm": "Échap à nouveau pour annuler",
+    "idle": "Prêt",
+    "mode": "Mode"
   },
   "home": {
     "hero": {
@@ -785,11 +802,20 @@
     "stats": {
       "today": "Aujourd'hui",
       "total": "Au total",
-      "words": "{{formatted}} mots",
+      "words": "Mots",
       "enhanced": "Améliorées par l'IA",
       "enhancedHint": "transcriptions réécrites par un mode",
       "lastUsed": "Dernière dictée",
-      "never": "Aucune dictée pour l'instant"
+      "never": "Aucune dictée pour l'instant",
+      "wpm": "{{value}} MPM",
+      "averageSpeed": "Vitesse moyenne",
+      "appsUsed": "Apps utilisées",
+      "savedAllTime": "Temps gagné au total",
+      "savedThisWeek": "Temps gagné cette semaine",
+      "hours": "{{count}} heures",
+      "minutes": "{{count}} min",
+      "savedHint": "Temps gagné par rapport à une frappe des mêmes mots à 40 mots par minute.",
+      "appsHint": "L'application est détectée au début de l'enregistrement. Les anciennes entrées n'en ont pas."
     },
     "modes": {
       "title": "Modes",
@@ -805,6 +831,52 @@
     },
     "microphone": {
       "title": "Microphone"
+    },
+    "period": {
+      "thisWeek": "Cette semaine",
+      "allTime": "Depuis le début"
+    },
+    "getStarted": {
+      "title": "Pour commencer",
+      "startRecording": {
+        "title": "Démarrer un enregistrement",
+        "description": "Transformez votre voix en texte en un clic."
+      },
+      "shortcuts": {
+        "title": "Personnaliser vos raccourcis",
+        "description": "Changez les raccourcis clavier de WhisperSM."
+      },
+      "createMode": {
+        "title": "Créer un mode",
+        "description": "Construisez le mode parfait pour votre façon de travailler."
+      },
+      "vocabulary": {
+        "title": "Ajouter du vocabulaire",
+        "description": "Apprenez à WhisperSM vos mots, noms ou termes métier."
+      },
+      "setShortcut": "Définir un raccourci"
+    },
+    "whatsNew": {
+      "title": "Quoi de neuf ?",
+      "viewAll": "Voir toutes les nouveautés"
+    },
+    "changelog": {
+      "modelsLibrary": {
+        "title": "Bibliothèque de modèles",
+        "description": "Tous les modèles vocaux et de langage au même endroit : fournisseurs cloud gratuits, modèles locaux, favoris et clés d'API."
+      },
+      "cloudVoice": {
+        "title": "Modèles vocaux cloud",
+        "description": "Transcrivez avec Deepgram Nova, ElevenLabs Scribe, Mistral Voxtral, Cohere Transcribe ou Whisper sur Groq, avec leurs offres gratuites."
+      },
+      "modes": {
+        "title": "Mode actif",
+        "description": "Choisissez le mode utilisé par le raccourci principal et changez-en avec un raccourci. Chaque mode peut avoir son propre modèle vocal."
+      },
+      "vocabulary": {
+        "title": "Vocabulaire",
+        "description": "Ajoutez les mots que les modèles doivent connaître et des remplacements comme « super whisper → Superwhisper »."
+      }
     }
   },
   "modes": {
@@ -828,7 +900,50 @@
       "subtitle": "Décrivez comment la transcription doit être réécrite et choisissez le modèle IA qui s'en charge.",
       "onDevice": "Local",
       "noModels": "Aucun modèle IA disponible. Téléchargez un modèle local ou ajoutez un fournisseur cloud.",
-      "addModel": "Ajouter un modèle"
+      "addModel": "Ajouter un modèle",
+      "name": "Nom",
+      "namePlaceholder": "ex. E-mail, Notes, Slack…",
+      "icon": "Icône",
+      "type": "Ce que fait ce mode",
+      "typeVoice": "Voix vers texte",
+      "typeVoiceHint": "Transcrit uniquement. Rien n'est réécrit.",
+      "typeAi": "Réécrire avec l'IA",
+      "typeAiHint": "Un modèle de langage réécrit la transcription selon votre consigne.",
+      "prompt": "Consigne",
+      "promptPlaceholder": "Décrivez comment la transcription doit être réécrite…",
+      "promptHint": "Utilisez ${output} pour insérer la transcription. Sinon, elle est ajoutée à la fin.",
+      "languageModel": "Modèle de langage",
+      "languageModelPlaceholder": "Choisir un modèle de langage",
+      "noLanguageModels": "Aucun modèle de langage n'est prêt. Téléchargez un modèle local ou ajoutez une clé d'API dans la bibliothèque de modèles.",
+      "openLibrary": "Ouvrir la bibliothèque de modèles",
+      "voiceModel": "Modèle vocal",
+      "voiceModelDefault": "Par défaut de l'app ({{model}})",
+      "voiceModelDefaultShort": "Par défaut de l'app",
+      "quickKey": "Touche rapide pendant l'enregistrement",
+      "noKey": "Aucune",
+      "keyTaken": "{{key}} (déjà utilisée)",
+      "shortcut": "Raccourci global",
+      "shortcutAfterSave": "Enregistrez le mode pour lui attribuer un raccourci global.",
+      "activeToggle": "Mode actif",
+      "activeToggleHint": "Utilisé par le raccourci d'enregistrement principal.",
+      "cannotDeleteBuiltIn": "Le mode intégré Voix vers texte ne peut pas être supprimé.",
+      "deleteTitle": "Supprimer le mode",
+      "deleteConfirm": "Supprimer le mode « {{name}} » ? Son raccourci sera aussi supprimé.",
+      "errors": {
+        "nameRequired": "Donnez un nom au mode."
+      }
+    },
+    "info": "Un mode choisit le modèle vocal qui transcrit votre voix et, en option, le modèle d'IA qui réécrit le résultat. Le mode actif est utilisé par le raccourci principal.",
+    "create": "Créer un mode",
+    "changeActive": "Changer de mode actif",
+    "active": "Actif",
+    "setActive": "Utiliser ce mode",
+    "voiceOnly": "Voix vers texte",
+    "aiMode": "Mode IA",
+    "row": {
+      "appDefaultModel": "Modèle vocal par défaut",
+      "noAiModel": "Aucun modèle d'IA choisi",
+      "quickKey": "Appuyez sur {{key}} pendant l'enregistrement"
     }
   },
   "models": {
@@ -908,5 +1023,364 @@
       "models": "Modèles de langage à poids ouverts utilisés pour le post-traitement local."
     },
     "license": "Publié sous licence MIT."
+  },
+  "shell": {
+    "microphone": {
+      "title": "Microphone",
+      "default": "{{name}} (Par défaut)",
+      "systemDefault": "Micro du système"
+    },
+    "output": {
+      "title": "Périphérique de sortie",
+      "systemDefault": "Sortie du système"
+    },
+    "modeChanged": "Mode : {{name}}"
+  },
+  "vocabulary": {
+    "title": "Vocabulaire",
+    "placeholder": "Nouveau mot ou remplacement",
+    "addWord": "Ajouter le mot",
+    "replaceWith": "Remplacer par…",
+    "replacementPlaceholder": "Écrit ainsi…",
+    "confirmReplacement": "Enregistrer le remplacement",
+    "cancel": "Annuler",
+    "empty": "Ajoutez des noms, des marques ou du jargon pour qu'ils soient bien orthographiés. Utilisez « Remplacer par… » pour réécrire ce que le modèle entend (« super whisper » → « Superwhisper »).",
+    "import": "Importer depuis un fichier texte",
+    "importHint": "Une entrée par ligne. Écrivez « entendu -> écrit » pour un remplacement.",
+    "imported": "{{count}} entrées importées",
+    "importFailed": "Impossible de lire ce fichier.",
+    "remove": "Supprimer {{word}}",
+    "duplicate": "« {{word}} » est déjà dans votre vocabulaire.",
+    "sections": {
+      "replacements": "Remplacements",
+      "words": "Mots"
+    }
+  },
+  "configuration": {
+    "title": "Configuration",
+    "appearance": {
+      "title": "Apparence",
+      "theme": {
+        "title": "Thème",
+        "auto": "Auto",
+        "light": "Clair",
+        "dark": "Sombre"
+      },
+      "recordingWindow": {
+        "title": "Fenêtre d'enregistrement",
+        "classic": "Classique",
+        "mini": "Mini",
+        "none": "Aucune"
+      },
+      "alwaysShow": {
+        "title": "Toujours afficher",
+        "description": "Garde la fenêtre d'enregistrement à l'écran entre deux enregistrements."
+      }
+    },
+    "shortcuts": {
+      "title": "Raccourcis clavier",
+      "toggleRecording": {
+        "title": "Démarrer / arrêter l'enregistrement",
+        "description": "Démarre et arrête les enregistrements"
+      },
+      "cancelRecording": {
+        "title": "Annuler l'enregistrement",
+        "description": "Abandonne l'enregistrement en cours"
+      },
+      "changeMode": {
+        "title": "Changer de mode",
+        "description": "Passe au mode suivant"
+      },
+      "pushToTalk": {
+        "title": "Push to Talk",
+        "description": "Maintenez pour enregistrer, relâchez pour terminer"
+      },
+      "aiShortcut": {
+        "title": "Dicter avec l'IA",
+        "description": "Enregistre puis applique le mode IA par défaut"
+      },
+      "record": "Enregistrer un raccourci",
+      "pressKeys": "Appuyez sur des touches…",
+      "reset": "Rétablir la valeur par défaut"
+    },
+    "application": {
+      "title": "Application",
+      "update": {
+        "title": "Mettre à jour l'application",
+        "check": "Rechercher des mises à jour…"
+      },
+      "autoUpdate": {
+        "title": "Vérifier automatiquement les mises à jour",
+        "description": "Cherche une nouvelle version sur GitHub au démarrage."
+      },
+      "launchOnLogin": {
+        "title": "Lancer à l'ouverture de session",
+        "description": "Démarre WhisperSM automatiquement quand vous vous connectez."
+      },
+      "errorLogging": {
+        "title": "Journal des erreurs",
+        "description": "Écrit des journaux détaillés pour diagnostiquer les problèmes. Désactivé, seules les erreurs sont conservées."
+      },
+      "keepRecordings": {
+        "title": "Conserver les enregistrements",
+        "description": "Les fichiers audio sont supprimés après cette période. Les entrées étoilées sont toujours conservées.",
+        "forever": "Pour toujours",
+        "latest": "Les {{count}} derniers",
+        "days3": "3 jours",
+        "weeks2": "2 semaines",
+        "months3": "3 mois"
+      },
+      "language": {
+        "title": "Langue de l'interface",
+        "description": "Langue de l'interface de WhisperSM."
+      }
+    },
+    "advanced": {
+      "title": "Réglages avancés"
+    }
+  },
+  "advanced": {
+    "title": "Réglages avancés",
+    "back": "Configuration",
+    "voiceModel": {
+      "title": "Modèle vocal",
+      "activeDuration": {
+        "title": "Durée d'activité du modèle vocal",
+        "description": "Temps pendant lequel le modèle reste chargé en mémoire après un enregistrement."
+      },
+      "language": {
+        "title": "Langue parlée",
+        "description": "Auto détecte la langue. En choisir une améliore la précision."
+      },
+      "translate": {
+        "title": "Traduire en anglais",
+        "description": "Traduit les autres langues en anglais pendant la transcription."
+      },
+      "holdToTalk": {
+        "title": "Maintenir le raccourci principal pour enregistrer",
+        "description": "Désactivé, une pression démarre et une autre arrête."
+      }
+    },
+    "folder": {
+      "title": "Dossier de l'application",
+      "description": "Où sont stockés les modèles, enregistrements et réglages.",
+      "open": "Ouvrir le dossier"
+    },
+    "textInput": {
+      "title": "Saisie du texte",
+      "clipboard": {
+        "title": "Contenu du presse-papiers",
+        "description": "Ce qui reste dans le presse-papiers après le collage.",
+        "keep": "Garder ce que j'avais copié",
+        "replace": "Garder la transcription"
+      },
+      "paste": {
+        "title": "Coller le texte résultant",
+        "description": "Insère le texte dans l'app active. Désactivé, le texte va seulement dans l'historique et le presse-papiers."
+      },
+      "autoSend": {
+        "title": "Envoi automatique après collage",
+        "description": "Appuie sur une touche après le collage, pour envoyer un message aussitôt.",
+        "key": "Touche à envoyer"
+      },
+      "simulate": {
+        "title": "Simuler la frappe",
+        "description": "Tape le texte touche par touche au lieu de coller. Plus lent, mais fonctionne dans les apps qui bloquent le collage."
+      },
+      "trailingSpace": {
+        "title": "Ajouter une espace finale",
+        "description": "Ajoute une espace après le texte collé."
+      }
+    },
+    "app": {
+      "title": "Application",
+      "startHidden": {
+        "title": "Démarrer masqué",
+        "description": "Se lance dans la barre des menus sans ouvrir la fenêtre."
+      },
+      "trayIcon": {
+        "title": "Icône dans la barre des menus",
+        "description": "Affiche l'icône WhisperSM dans la barre des menus / zone de notification."
+      }
+    },
+    "data": {
+      "title": "Données",
+      "exportImport": "Exporter / importer les réglages"
+    }
+  },
+  "sound": {
+    "title": "Son",
+    "recording": {
+      "title": "Enregistrement",
+      "microphone": {
+        "title": "Microphone",
+        "description": "Périphérique utilisé pour les enregistrements."
+      },
+      "silenceRemoval": {
+        "title": "Suppression des silences",
+        "description": "Retire les passages silencieux avant la transcription. Plus rapide et moins d'hallucinations."
+      },
+      "playback": {
+        "title": "Lecture pendant l'enregistrement",
+        "description": "Ce qui arrive aux autres sons pendant que vous enregistrez.",
+        "mute": "Couper le son",
+        "nothing": "Ne rien faire"
+      },
+      "alwaysOn": {
+        "title": "Micro toujours actif",
+        "description": "Garde le micro ouvert pour démarrer plus vite."
+      }
+    },
+    "effects": {
+      "title": "Effets sonores",
+      "label": "Effets sonores",
+      "simple": "Simple",
+      "classic": "Classique",
+      "off": "Désactivés",
+      "volume": "Volume",
+      "output": {
+        "title": "Périphérique de sortie",
+        "description": "Périphérique utilisé pour les effets sonores."
+      },
+      "preview": "Écouter"
+    }
+  },
+  "library": {
+    "title": "Bibliothèque de modèles",
+    "search": "Rechercher un modèle",
+    "allProviders": "Tous les fournisseurs",
+    "apiKeys": "Clés d'API",
+    "columns": {
+      "name": "Nom du modèle",
+      "type": "Type",
+      "speedAccuracy": "Vitesse / Précision",
+      "cloudOffline": "Cloud / Hors ligne"
+    },
+    "type": {
+      "voice": {
+        "title": "Modèle vocal",
+        "description": "Convertit la parole en texte."
+      },
+      "language": {
+        "title": "Modèle de langage",
+        "description": "Traite et transforme le texte transcrit."
+      }
+    },
+    "scores": {
+      "speed": "Vitesse",
+      "accuracy": "Précision"
+    },
+    "filters": {
+      "title": "Filtrer",
+      "all": "Tous les modèles",
+      "voice": "Modèles vocaux",
+      "language": "Modèles de langage",
+      "cloud": "Cloud",
+      "offline": "Hors ligne",
+      "favorites": "Favoris",
+      "ready": "Prêts à l'emploi"
+    },
+    "badges": {
+      "new": "NOUVEAU",
+      "en": "EN"
+    },
+    "status": {
+      "active": "Actif",
+      "inUse": "Utilisé",
+      "cloud": "Cloud",
+      "needsKey": "Ajoutez une clé d'API {{provider}} pour utiliser ce modèle",
+      "downloaded": "Téléchargé",
+      "onDevice": "Sur l'appareil"
+    },
+    "actions": {
+      "download": "Télécharger",
+      "delete": "Supprimer",
+      "cancel": "Annuler",
+      "use": "Utiliser pour la dictée",
+      "enable": "Ajouter aux modes",
+      "disable": "Retirer des modes",
+      "favorite": "Ajouter aux favoris",
+      "unfavorite": "Retirer des favoris",
+      "addKey": "Ajouter une clé d'API",
+      "try": "Essayer"
+    },
+    "older": {
+      "show": "Anciens modèles",
+      "hide": "Masquer les anciens modèles"
+    },
+    "empty": "Aucun modèle ne correspond.",
+    "keys": {
+      "title": "Clés d'API",
+      "description": "Les clés sont stockées sur cet ordinateur et envoyées uniquement au fournisseur choisi. Chaque fournisseur listé propose une offre gratuite.",
+      "placeholder": "Collez votre clé d'API",
+      "getKey": "Obtenir une clé",
+      "saved": "Clé enregistrée",
+      "removed": "Clé supprimée",
+      "clear": "Retirer",
+      "free": "Offre gratuite",
+      "capabilities": {
+        "voice": "Voix",
+        "language": "Langage"
+      }
+    },
+    "local": {
+      "ram": "{{gb}} Go de RAM",
+      "params": "{{params}} paramètres",
+      "downloading": "Téléchargement {{percentage}} %",
+      "resume": "Reprendre"
+    },
+    "confirm": {
+      "deleteTitle": "Supprimer le modèle",
+      "delete": "Supprimer {{model}} de cet ordinateur ? Vous pourrez le retélécharger plus tard.",
+      "deleteActive": "{{model}} est votre modèle vocal actif. Le supprimer arrête la dictée jusqu'à ce que vous en choisissiez un autre. Continuer ?"
+    },
+    "toasts": {
+      "activated": "{{model}} est maintenant utilisé pour la dictée",
+      "enabled": "{{model}} peut maintenant être utilisé dans les modes",
+      "downloadComplete": "{{model}} est prêt",
+      "downloadFailed": "Le téléchargement a échoué",
+      "error": "Une erreur s'est produite"
+    },
+    "custom": {
+      "title": "Modèle de langage personnalisé",
+      "description": "N'importe quel point d'accès compatible OpenAI (Ollama, LM Studio, vLLM…).",
+      "add": "Ajouter un modèle personnalisé",
+      "baseUrl": "URL de base",
+      "model": "Identifiant du modèle",
+      "label": "Libellé (optionnel)",
+      "save": "Enregistrer"
+    }
+  },
+  "historyPage": {
+    "title": "Historique",
+    "search": "Rechercher dans l'historique",
+    "empty": "Aucune transcription pour l'instant. Lancez un enregistrement pour remplir votre historique.",
+    "noResults": "Rien ne correspond à « {{query}} ».",
+    "loading": "Chargement de l'historique…",
+    "groups": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "daysAgo": "Il y a {{count}} jours"
+    },
+    "details": {
+      "app": "Dicté dans {{app}}",
+      "duration": "{{seconds}} s d'audio",
+      "words": "{{count}} mots",
+      "raw": "Transcription brute",
+      "processed": "Réécriture IA"
+    },
+    "actions": {
+      "copy": "Copier",
+      "copied": "Copié",
+      "save": "Étoiler",
+      "unsave": "Retirer l'étoile",
+      "retranscribe": "Transcrire à nouveau",
+      "processWith": "Réécrire avec un mode",
+      "delete": "Supprimer",
+      "openFolder": "Ouvrir le dossier des enregistrements",
+      "collapse": "Réduire",
+      "expand": "Détails"
+    },
+    "loadMore": "Charger plus"
   }
 }

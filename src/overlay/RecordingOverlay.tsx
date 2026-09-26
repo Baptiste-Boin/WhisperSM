@@ -7,7 +7,19 @@ import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 import { getActionIcon } from "@/lib/constants/actionIcons";
 
-type OverlayState = "recording" | "transcribing" | "processing";
+type OverlayState =
+  | "recording"
+  | "transcribing"
+  | "processing"
+  | "idle"
+  | "mode";
+type OverlayStyle = "classic" | "mini";
+
+interface ShowOverlayPayload {
+  state: OverlayState;
+  style: OverlayStyle;
+  mode_name: string | null;
+}
 
 interface ActionInfo {
   key: number | null;
@@ -175,6 +187,8 @@ const RecordingOverlay: React.FC = () => {
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
   const [state, setState] = useState<OverlayState>("recording");
+  const [style, setStyle] = useState<OverlayStyle>("classic");
+  const [modeName, setModeName] = useState<string | null>(null);
   const [timerStart, setTimerStart] = useState(0);
   const [selectedAction, setSelectedAction] = useState<ActionInfo | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
@@ -196,17 +210,29 @@ const RecordingOverlay: React.FC = () => {
     let cleanupListeners: (() => void) | undefined;
 
     const setupEventListeners = async () => {
-      const unlistenShow = await listen("show-overlay", async (event) => {
-        await syncLanguageFromSettings();
-        const overlayState = event.payload as OverlayState;
-        setState(overlayState);
-        setIsVisible(true);
-        setIsPaused(false);
-        if (overlayState === "recording") {
-          setTimerStart(Date.now());
-          setSelectedAction(null);
-        }
-      });
+      const unlistenShow = await listen<ShowOverlayPayload | string>(
+        "show-overlay",
+        async (event) => {
+          await syncLanguageFromSettings();
+          const payload =
+            typeof event.payload === "string"
+              ? {
+                  state: event.payload as OverlayState,
+                  style: "classic" as const,
+                  mode_name: null,
+                }
+              : event.payload;
+          setState(payload.state);
+          setStyle(payload.style ?? "classic");
+          setModeName(payload.mode_name ?? null);
+          setIsVisible(true);
+          setIsPaused(false);
+          if (payload.state === "recording") {
+            setTimerStart(Date.now());
+            setSelectedAction(null);
+          }
+        },
+      );
 
       const unlistenHide = await listen("hide-overlay", () => {
         setIsVisible(false);
@@ -288,7 +314,7 @@ const RecordingOverlay: React.FC = () => {
   return (
     <div
       dir={direction}
-      className={`recording-overlay state-${state} ${isVisible ? "is-visible" : "is-hidden"}`}
+      className={`recording-overlay state-${state} style-${style} ${isVisible ? "is-visible" : "is-hidden"}`}
     >
       <div className="overlay-left">
         {state === "recording" ? (
@@ -297,6 +323,8 @@ const RecordingOverlay: React.FC = () => {
           ) : (
             <MicIcon />
           )
+        ) : state === "idle" ? (
+          <span className="idle-dot" />
         ) : (
           <DotsIcon />
         )}
@@ -311,9 +339,19 @@ const RecordingOverlay: React.FC = () => {
       <div className="overlay-middle">
         {state === "recording" && !cancelPending && (
           <>
-            <TimerDisplay startTime={timerStart} isPaused={isPaused} />
+            {style === "classic" && (
+              <TimerDisplay startTime={timerStart} isPaused={isPaused} />
+            )}
             <AudioBars />
           </>
+        )}
+        {state === "idle" && (
+          <div className="transcribing-text idle-text">{t("overlay.idle")}</div>
+        )}
+        {state === "mode" && (
+          <div className="mode-text" title={modeName ?? undefined}>
+            {modeName ?? t("overlay.mode")}
+          </div>
         )}
         {state === "recording" && cancelPending && (
           <div className="cancel-confirm-text">
@@ -329,7 +367,7 @@ const RecordingOverlay: React.FC = () => {
       </div>
 
       <div className="overlay-right">
-        {state === "recording" && (
+        {state === "recording" && style === "classic" && (
           <>
             <div className="pause-button" onClick={handleTogglePause}>
               {isPaused ? <PlayIcon /> : <PauseIcon />}

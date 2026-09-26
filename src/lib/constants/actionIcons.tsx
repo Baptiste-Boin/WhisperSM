@@ -30,6 +30,7 @@ import {
   ThumbsUp,
   BookOpen,
   Feather,
+  Mic,
 } from "lucide-react";
 
 /**
@@ -38,6 +39,7 @@ import {
  * ones without a migration.
  */
 export const ACTION_ICONS: Record<string, LucideIcon> = {
+  mic: Mic,
   sparkles: Sparkles,
   wand: Wand2,
   stars: Stars,

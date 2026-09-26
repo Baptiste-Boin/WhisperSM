@@ -1,4 +1,11 @@
-import { Suspense, useEffect, useState, useRef } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast, Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
@@ -9,18 +16,17 @@ import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import { OnboardingWizard } from "./components/onboarding";
-import {
-  Sidebar,
-  SidebarSection,
-  SECTIONS_CONFIG,
-  LEGACY_SECTION_ALIASES,
-} from "./components/Sidebar";
+import { Sidebar } from "./components/Sidebar";
+import { HeaderBar } from "./components/HeaderBar";
+import { HomePage } from "./pages/HomePage";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useLocalLlmStore } from "./stores/localLlmStore";
 import { commands } from "@/bindings";
 import { checkMacOSAccessibilityReady } from "@/lib/permissions";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
+import { applyTheme } from "@/lib/theme";
+import { resolveSection, type AppSection } from "@/lib/navigation";
 
 type OnboardingMode = "full" | "permissions" | "done";
 
@@ -30,21 +36,75 @@ interface PostProcessErrorEvent {
   error: string;
 }
 
-const renderSection = (section: SidebarSection) => {
-  const ActiveComponent =
-    SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.home.component;
-  return (
-    <Suspense fallback={null}>
-      <div key={section} className="wsm-fade-in">
-        <ActiveComponent />
-      </div>
-    </Suspense>
-  );
+interface ActiveModeEvent {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+// Home is eager since it is shown on launch; the rest load on demand.
+const ModesPage = lazy(() =>
+  import("./pages/ModesPage").then((m) => ({ default: m.ModesPage })),
+);
+const VocabularyPage = lazy(() =>
+  import("./pages/VocabularyPage").then((m) => ({
+    default: m.VocabularyPage,
+  })),
+);
+const ConfigurationPage = lazy(() =>
+  import("./pages/ConfigurationPage").then((m) => ({
+    default: m.ConfigurationPage,
+  })),
+);
+const AdvancedSettingsPage = lazy(() =>
+  import("./pages/AdvancedSettingsPage").then((m) => ({
+    default: m.AdvancedSettingsPage,
+  })),
+);
+const SoundPage = lazy(() =>
+  import("./pages/SoundPage").then((m) => ({ default: m.SoundPage })),
+);
+const ModelsLibraryPage = lazy(() =>
+  import("./pages/ModelsLibraryPage").then((m) => ({
+    default: m.ModelsLibraryPage,
+  })),
+);
+const HistoryPage = lazy(() =>
+  import("./pages/HistoryPage").then((m) => ({ default: m.HistoryPage })),
+);
+const AboutPage = lazy(() =>
+  import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })),
+);
+const DebugSettings = lazy(() =>
+  import("./components/settings/debug/DebugSettings").then((m) => ({
+    default: m.DebugSettings,
+  })),
+);
+
+const SECTION_COMPONENTS: Record<AppSection, React.ComponentType> = {
+  home: HomePage,
+  modes: ModesPage,
+  vocabulary: VocabularyPage,
+  configuration: ConfigurationPage,
+  advanced: AdvancedSettingsPage,
+  sound: SoundPage,
+  library: ModelsLibraryPage,
+  history: HistoryPage,
+  about: AboutPage,
+  debug: DebugSettings,
 };
 
-const resolveSection = (section: string): SidebarSection | null => {
-  if (section in SECTIONS_CONFIG) return section as SidebarSection;
-  return LEGACY_SECTION_ALIASES[section] ?? null;
+/** Pages that manage their own width (tables, lists). */
+const WIDE_SECTIONS = new Set<AppSection>(["library", "history"]);
+
+const SIDEBAR_STORAGE_KEY = "wsm.sidebarOpen";
+
+const readSidebarPreference = (): boolean => {
+  try {
+    return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) !== "closed";
+  } catch {
+    return true;
+  }
 };
 
 function App() {
@@ -52,7 +112,10 @@ function App() {
   const [onboardingMode, setOnboardingMode] = useState<OnboardingMode | null>(
     null,
   );
-  const [currentSection, setCurrentSection] = useState<SidebarSection>("home");
+  const [currentSection, setCurrentSection] = useState<AppSection>("home");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(
+    readSidebarPreference,
+  );
   const { settings, updateSetting } = useSettings();
   const direction = getLanguageDirection(i18n.language);
   const refreshAudioDevices = useSettingsStore(
@@ -75,6 +138,11 @@ function App() {
   useEffect(() => {
     initializeLocalLlm();
   }, [initializeLocalLlm]);
+
+  // Theme preference → data-theme attribute
+  useEffect(() => {
+    applyTheme(settings?.theme);
+  }, [settings?.theme]);
 
   // Initialize Enigo, shortcuts, and refresh audio devices when main app loads
   useEffect(() => {
@@ -185,6 +253,36 @@ function App() {
     };
   }, [t]);
 
+  // Active mode changed from the "Change mode" shortcut
+  useEffect(() => {
+    const refreshSettings = useSettingsStore.getState().refreshSettings;
+    const unlisten = listen<ActiveModeEvent>("active-mode-changed", (event) => {
+      refreshSettings();
+      toast(t("shell.modeChanged", { name: event.payload.name }), {
+        id: "active-mode",
+        duration: 1600,
+      });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((open) => {
+      const next = !open;
+      try {
+        window.localStorage.setItem(
+          SIDEBAR_STORAGE_KEY,
+          next ? "open" : "closed",
+        );
+      } catch {
+        // localStorage may be unavailable; the preference is not essential
+      }
+      return next;
+    });
+  }, []);
+
   const revealMainWindowForPermissions = async () => {
     try {
       await commands.showMainWindowCommand();
@@ -264,6 +362,9 @@ function App() {
     );
   }
 
+  const ActiveComponent = SECTION_COMPONENTS[currentSection] ?? HomePage;
+  const isWide = WIDE_SECTIONS.has(currentSection);
+
   return (
     <div
       dir={direction}
@@ -282,15 +383,34 @@ function App() {
           },
         }}
       />
-      <Sidebar
-        activeSection={currentSection}
-        onSectionChange={setCurrentSection}
-      />
-      <main className="flex-1 flex flex-col overflow-hidden">
+      {sidebarOpen && (
+        <Sidebar
+          activeSection={currentSection}
+          onSectionChange={setCurrentSection}
+        />
+      )}
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <HeaderBar
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
+          onBack={
+            currentSection === "advanced"
+              ? () => setCurrentSection("configuration")
+              : undefined
+          }
+        />
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-[820px] mx-auto px-8 py-8 flex flex-col gap-6">
+          <div
+            className={`mx-auto px-7 py-6 flex flex-col gap-6 ${
+              isWide ? "max-w-[980px]" : "max-w-[820px]"
+            }`}
+          >
             <AccessibilityPermissions />
-            {renderSection(currentSection)}
+            <Suspense fallback={null}>
+              <div key={currentSection} className="wsm-fade-in">
+                <ActiveComponent />
+              </div>
+            </Suspense>
           </div>
         </div>
       </main>

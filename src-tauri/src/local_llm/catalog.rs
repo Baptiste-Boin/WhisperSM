@@ -14,6 +14,8 @@ use specta::Type;
 pub enum LocalLlmArch {
     Qwen2,
     Llama,
+    /// Mistral 7B family: Llama weights layout with the `[INST]` chat template.
+    Mistral,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -165,6 +167,38 @@ pub fn catalog() -> Vec<LocalLlmModelInfo> {
             0.82,
             0.6,
             false,
+            false,
+        ),
+        entry(
+            "llama-3.1-8b-instruct",
+            "Llama 3.1 8B",
+            "Meta's 8B model. Excellent rewrites in many languages. Needs 16 GB RAM.",
+            "Llama 3.1",
+            "8B",
+            LocalLlmArch::Llama,
+            "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+            "https://huggingface.co/unsloth/Meta-Llama-3.1-8B-Instruct/resolve/main/tokenizer.json",
+            4700,
+            16,
+            0.9,
+            0.35,
+            true,
+            false,
+        ),
+        entry(
+            "mistral-7b-instruct-v0.3",
+            "Mistral 7B v0.3",
+            "Mistral AI's open 7B model. Great for French and English. Needs 16 GB RAM.",
+            "Mistral",
+            "7B",
+            LocalLlmArch::Mistral,
+            "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+            "https://huggingface.co/unsloth/mistral-7b-instruct-v0.3/resolve/main/tokenizer.json",
+            4170,
+            16,
+            0.88,
+            0.4,
+            true,
             false,
         ),
     ]

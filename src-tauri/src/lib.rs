@@ -5,7 +5,9 @@ mod audio_feedback;
 pub mod audio_toolkit;
 pub mod cli;
 mod clipboard;
+mod cloud_stt;
 mod commands;
+mod frontmost_app;
 mod helpers;
 mod input;
 mod llm_client;
@@ -295,8 +297,13 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         let _ = autostart_manager.disable();
     }
 
-    // Create the recording overlay window (hidden by default)
+    // Create the recording overlay window (hidden by default, or resting
+    // when "Always show" is enabled)
     utils::create_recording_overlay(app_handle);
+    overlay::show_idle_overlay_after_startup(app_handle);
+
+    // Native window chrome follows the theme preference
+    shortcut::apply_theme(app_handle);
 }
 
 #[tauri::command]
@@ -334,6 +341,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
             shortcut::change_translate_to_english_setting,
             shortcut::change_selected_language_setting,
             shortcut::change_overlay_position_setting,
+            shortcut::change_theme_setting,
+            shortcut::change_overlay_style_setting,
+            shortcut::change_overlay_always_show_setting,
+            shortcut::change_silence_removal_setting,
+            shortcut::update_vocabulary_replacements,
             shortcut::change_debug_mode_setting,
             shortcut::change_word_correction_threshold_setting,
             shortcut::change_extra_recording_buffer_setting,
@@ -441,6 +453,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::local_llm::get_local_llm_status,
             commands::local_llm::unload_local_llm,
             commands::local_llm::test_local_llm,
+            commands::modes::set_active_mode,
+            commands::modes::cycle_active_mode,
             helpers::clamshell::is_laptop,
         ])
         .events(collect_events![managers::history::HistoryUpdatePayload,])
@@ -605,6 +619,9 @@ pub fn run(cli_args: CliArgs) {
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
             let app_handle = app.handle().clone();
             app.manage(actions::ActiveActionState(std::sync::Mutex::new(None)));
+            app.manage(actions::RecordingContextState(std::sync::Mutex::new(
+                None,
+            )));
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
             initialize_core_logic(&app_handle);
