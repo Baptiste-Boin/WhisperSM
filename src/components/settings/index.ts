@@ -6,4 +6,3 @@ export { OutputDeviceSelector } from "./OutputDeviceSelector";
 export { VolumeSlider } from "./VolumeSlider";
 export { MuteWhileRecording } from "./MuteWhileRecording";
 export { DebugSettings } from "./debug/DebugSettings";
-export { HistorySettings } from "./history/HistorySettings";

@@ -6,6 +6,10 @@ import type {
   AudioDevice,
   WhisperAcceleratorSetting,
   OrtAcceleratorSetting,
+  ThemePreference,
+  OverlayStyle,
+  VocabularyReplacement,
+  ModelUnloadTimeout,
 } from "@/bindings";
 import { commands } from "@/bindings";
 
@@ -155,6 +159,18 @@ const settingUpdaters: {
     commands.changeWhisperGpuDevice(value as number),
   extra_recording_buffer_ms: (value) =>
     commands.changeExtraRecordingBufferSetting(value as number),
+  theme: (value) => commands.changeThemeSetting(value as ThemePreference),
+  overlay_style: (value) =>
+    commands.changeOverlayStyleSetting(value as OverlayStyle),
+  overlay_always_show: (value) =>
+    commands.changeOverlayAlwaysShowSetting(value as boolean),
+  silence_removal: (value) =>
+    commands.changeSilenceRemovalSetting(value as boolean),
+  vocabulary_replacements: (value) =>
+    commands.updateVocabularyReplacements(value as VocabularyReplacement[]),
+  active_mode_id: (value) => commands.setActiveMode(value as string),
+  model_unload_timeout: (value) =>
+    commands.setModelUnloadTimeout(value as ModelUnloadTimeout),
 };
 
 // Module-level so initialize() runs only once even though every

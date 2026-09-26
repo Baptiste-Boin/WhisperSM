@@ -1,38 +1,191 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { Cpu, Globe, Plus, Sparkles, Trash2 } from "lucide-react";
-import { commands, type PostProcessAction } from "@/bindings";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { Info, Mic, Plus, Sparkles, Trash2 } from "lucide-react";
+import { commands, type LLMModel, type PostProcessAction } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
+import { useModelStore } from "@/stores/modelStore";
+import { useLocalLlmStore } from "@/stores/localLlmStore";
 import { formatKeyCombination } from "@/lib/utils/keyboard";
-import { navigateTo } from "@/lib/navigation";
+import { getTranslatedModelName } from "@/lib/utils/modelTranslation";
+import { consumePendingPageAction, navigateTo } from "@/lib/navigation";
 import {
   ACTION_ICON_NAMES,
   DEFAULT_ACTION_ICON,
   getActionIcon,
 } from "@/lib/constants/actionIcons";
 import {
-  Badge,
+  localLlmVendor,
+  providerVendor,
+  type VendorId,
+} from "@/lib/constants/modelCatalog";
+import {
   Button,
   Dialog,
   Dropdown,
   Input,
-  Kbd,
   KeyCombo,
-  PageHeader,
-  SettingsGroup,
+  SegmentedControl,
+  Switch,
   Textarea,
-  ToggleSwitch,
+  Tooltip,
 } from "@/components/ui";
+import { VendorLogo } from "@/components/ui/VendorLogo";
 import { ShortcutInput } from "@/components/settings/ShortcutInput";
 
+/** Built-in "Voice to text" mode: always voice-only, cannot be deleted. */
+const BUILT_IN_MODE_ID = "act_voice_to_text";
 const LOCAL_PROVIDER_ID = "local";
+const VOICE_ICON = "mic";
+const NEW_MODE_ID = "new";
+const CREATE_MODE_ACTION = "create-mode";
+const SEPARATOR = " · ";
+
+type ModeType = "voice" | "ai";
+
+interface ModelTile {
+  vendor: VendorId | string;
+  label: string;
+}
+
+const isVoiceOnly = (action: PostProcessAction) => action.prompt.trim() === "";
+
+/** Icon shown for a mode: its own icon, else Mic (voice) or Sparkles (AI). */
+const modeIconName = (action: PostProcessAction) =>
+  action.icon || (isVoiceOnly(action) ? VOICE_ICON : DEFAULT_ACTION_ICON);
+
+/* ------------------------------------------------------------------------ */
+/* Header info tip                                                          */
+/* ------------------------------------------------------------------------ */
+
+const InfoTip: React.FC<{ text: string }> = ({ text }) => {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        aria-label={text}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-text-muted hover:text-text transition-colors cursor-help"
+      >
+        <Info className="w-4 h-4" />
+      </button>
+      {open && (
+        <Tooltip targetRef={ref} position="bottom">
+          <p className="text-xs leading-relaxed text-text">{text}</p>
+        </Tooltip>
+      )}
+    </>
+  );
+};
+
+/* ------------------------------------------------------------------------ */
+/* Mode row                                                                 */
+/* ------------------------------------------------------------------------ */
+
+interface ModeRowProps {
+  action: PostProcessAction;
+  isActive: boolean;
+  tiles: ModelTile[];
+  llmLabel: string | null;
+  onClick: () => void;
+}
+
+const ModeRow: React.FC<ModeRowProps> = ({
+  action,
+  isActive,
+  tiles,
+  llmLabel,
+  onClick,
+}) => {
+  const { t } = useTranslation();
+  const voiceOnly = isVoiceOnly(action);
+  const Icon = getActionIcon(modeIconName(action));
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="wsm-card w-full h-[68px] px-5 mb-3 flex items-center gap-4 text-start hover:border-accent/40 transition-colors cursor-pointer"
+    >
+      <Icon className="w-[18px] h-[18px] shrink-0 text-text-muted" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[17px] font-medium leading-tight truncate">
+            {action.name}
+          </span>
+          {isActive && (
+            <span
+              className="w-2 h-2 rounded-full bg-success shrink-0"
+              title={t("modes.active")}
+              aria-label={t("modes.active")}
+              role="img"
+            />
+          )}
+        </div>
+        <p className="text-[13px] text-text-muted truncate mt-0.5">
+          {voiceOnly ? (
+            t("modes.voiceOnly")
+          ) : llmLabel ? (
+            llmLabel
+          ) : (
+            <span className="text-warning">{t("modes.row.noAiModel")}</span>
+          )}
+          {action.trigger_key != null &&
+            `${SEPARATOR}${t("modes.row.quickKey", { key: action.trigger_key })}`}
+        </p>
+      </div>
+      {tiles.length > 0 && (
+        <span className="flex items-center gap-1 p-1 rounded-xl bg-surface-2 shrink-0">
+          {tiles.map((tile, index) => (
+            <span
+              key={`${tile.vendor}-${index}`}
+              title={tile.label}
+              className="inline-flex [&>*]:pointer-events-none"
+            >
+              <VendorLogo vendor={tile.vendor} size={30} />
+            </span>
+          ))}
+        </span>
+      )}
+    </button>
+  );
+};
+
+/* ------------------------------------------------------------------------ */
+/* Create / edit dialog                                                     */
+/* ------------------------------------------------------------------------ */
 
 const IconPicker: React.FC<{
   value: string;
   onChange: (icon: string) => void;
 }> = ({ value, onChange }) => (
-  <div className="grid grid-cols-10 gap-1.5">
+  <div className="flex flex-wrap gap-1.5">
     {ACTION_ICON_NAMES.map((name) => {
       const Icon = getActionIcon(name);
       const isActive = name === value;
@@ -41,7 +194,8 @@ const IconPicker: React.FC<{
           key={name}
           type="button"
           onClick={() => onChange(name)}
-          className={`flex items-center justify-center aspect-square rounded-lg border transition-colors ${
+          aria-pressed={isActive}
+          className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-colors ${
             isActive
               ? "border-accent bg-accent-soft text-accent"
               : "border-border hover:border-accent/50 hover:bg-surface-2 text-text-muted"
@@ -54,55 +208,129 @@ const IconPicker: React.FC<{
   </div>
 );
 
+const Field: React.FC<{
+  label: string;
+  htmlFor?: string;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ label, htmlFor, hint, children }) => (
+  <div className="space-y-1.5 min-w-0">
+    <label htmlFor={htmlFor} className="block text-[13px] font-medium">
+      {label}
+    </label>
+    {children}
+    {hint && <p className="text-xs text-text-muted leading-relaxed">{hint}</p>}
+  </div>
+);
+
 interface ModeDialogProps {
-  open: boolean;
   action: PostProcessAction | null;
   onClose: () => void;
-  onSaved: (id: string) => void;
+  onCreated: (id: string) => void;
 }
 
 const ModeDialog: React.FC<ModeDialogProps> = ({
-  open,
   action,
   onClose,
-  onSaved,
+  onCreated,
 }) => {
   const { t } = useTranslation();
   const { settings, refreshSettings } = useSettings();
+  const speechModels = useModelStore((state) => state.models);
+  const currentModelId = useModelStore((state) => state.currentModel);
 
-  const savedModels = settings?.llm_models || [];
-  const providers = settings?.post_process_providers || [];
-  const actions = settings?.post_process_actions || [];
+  const llmModels = useMemo(() => settings?.llm_models ?? [], [settings]);
+  const providers = useMemo(
+    () => settings?.post_process_providers ?? [],
+    [settings],
+  );
+  const actions = useMemo(
+    () => settings?.post_process_actions ?? [],
+    [settings],
+  );
+
+  const isBuiltIn = action?.id === BUILT_IN_MODE_ID;
+  const wasActive = action != null && settings?.active_mode_id === action.id;
+
+  const initialType: ModeType = action
+    ? isBuiltIn || isVoiceOnly(action)
+      ? "voice"
+      : "ai"
+    : llmModels.length > 0
+      ? "ai"
+      : "voice";
 
   const [name, setName] = useState(action?.name ?? "");
+  const [type, setType] = useState<ModeType>(initialType);
+  const [icon, setIcon] = useState(
+    action
+      ? modeIconName(action)
+      : initialType === "voice"
+        ? VOICE_ICON
+        : DEFAULT_ACTION_ICON,
+  );
   const [prompt, setPrompt] = useState(action?.prompt ?? "");
-  const [icon, setIcon] = useState(action?.icon ?? DEFAULT_ACTION_ICON);
-  const [llmModelId, setLlmModelId] = useState<string | null>(
-    action?.llm_model_id ?? savedModels[0]?.id ?? null,
+  const [llmModelId, setLlmModelId] = useState<string | null>(() => {
+    const saved = action?.llm_model_id;
+    if (saved && llmModels.some((m) => m.id === saved)) return saved;
+    return llmModels[0]?.id ?? null;
+  });
+  const [speechModelId, setSpeechModelId] = useState(
+    action?.speech_model_id ?? "",
   );
   const [triggerKey, setTriggerKey] = useState<number | null>(
     action?.trigger_key ?? null,
   );
+  const [makeActive, setMakeActive] = useState(wasActive);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const providerLabel = useCallback(
-    (id: string) => providers.find((p) => p.id === id)?.label ?? id,
-    [providers],
+  const changeType = (next: ModeType) => {
+    if (isBuiltIn) return;
+    setType(next);
+    // Swap the default icons so the row icon matches the mode type.
+    setIcon((current) => {
+      if (next === "voice" && current === DEFAULT_ACTION_ICON) {
+        return VOICE_ICON;
+      }
+      if (next === "ai" && current === VOICE_ICON) return DEFAULT_ACTION_ICON;
+      return current;
+    });
+  };
+
+  const languageModelOptions = useMemo(
+    () =>
+      llmModels.map((model: LLMModel) => ({
+        value: model.id,
+        label: model.label,
+        hint:
+          model.provider_id === LOCAL_PROVIDER_ID
+            ? t("library.status.onDevice")
+            : (providers.find((p) => p.id === model.provider_id)?.label ??
+              model.provider_id),
+      })),
+    [llmModels, providers, t],
   );
 
-  const modelOptions = useMemo(
-    () =>
-      savedModels.map((m) => ({
-        value: m.id,
-        label: m.label,
-        hint:
-          m.provider_id === LOCAL_PROVIDER_ID
-            ? t("modes.dialog.onDevice")
-            : providerLabel(m.provider_id),
-      })),
-    [savedModels, providerLabel, t],
-  );
+  const voiceModelOptions = useMemo(() => {
+    const current = speechModels.find((m) => m.id === currentModelId);
+    const defaultLabel = current
+      ? t("modes.dialog.voiceModelDefault", {
+          model: getTranslatedModelName(current, t),
+        })
+      : t("modes.dialog.voiceModelDefaultShort");
+    return [
+      { value: "", label: defaultLabel },
+      ...speechModels
+        .filter((m) => m.is_downloaded || m.id === speechModelId)
+        .map((m) => ({
+          value: m.id,
+          label: getTranslatedModelName(m, t),
+          hint: m.is_cloud ? t("library.status.cloud") : undefined,
+        })),
+    ];
+  }, [speechModels, currentModelId, speechModelId, t]);
 
   const triggerKeyOptions = useMemo(() => {
     const usedKeys = new Set(
@@ -112,13 +340,13 @@ const ModeDialog: React.FC<ModeDialogProps> = ({
         .filter((k): k is number => k != null),
     );
     const options: { value: string; label: string; disabled?: boolean }[] = [
-      { value: "none", label: t("settings.postProcessing.actions.noKey") },
+      { value: "none", label: t("modes.dialog.noKey") },
     ];
     for (let k = 1; k <= 9; k++) {
       options.push({
         value: String(k),
         label: usedKeys.has(k)
-          ? t("settings.postProcessing.actions.keyTaken", { key: k })
+          ? t("modes.dialog.keyTaken", { key: k })
           : String(k),
         disabled: usedKeys.has(k),
       });
@@ -126,72 +354,131 @@ const ModeDialog: React.FC<ModeDialogProps> = ({
     return options;
   }, [actions, action?.id, t]);
 
-  const canSave = name.trim().length > 0 && prompt.trim().length > 0;
+  const canSave = !isSaving && (type === "voice" || prompt.trim() !== "");
 
   const handleSave = useCallback(async () => {
-    if (!canSave) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError(t("modes.dialog.errors.nameRequired"));
+      return;
+    }
+    const voiceOnly = type === "voice";
+    const finalPrompt = voiceOnly ? "" : prompt.trim();
+    const finalLlmModelId = voiceOnly ? null : llmModelId;
+    const finalSpeechModelId = speechModelId === "" ? null : speechModelId;
+
     setIsSaving(true);
     setError(null);
     try {
-      const result = action
-        ? await commands.updatePostProcessAction(
-            action.id,
-            name.trim(),
-            prompt.trim(),
-            llmModelId,
-            icon,
-            triggerKey,
-          )
-        : await commands.addPostProcessAction(
-            name.trim(),
-            prompt.trim(),
-            llmModelId,
-            icon,
-            triggerKey,
-          );
-      if (result.status === "ok") {
-        await refreshSettings();
-        onSaved(action ? action.id : (result.data?.id ?? ""));
+      let id: string;
+      if (action) {
+        const result = await commands.updatePostProcessAction(
+          action.id,
+          trimmedName,
+          finalPrompt,
+          finalLlmModelId,
+          icon,
+          triggerKey,
+          finalSpeechModelId,
+        );
+        if (result.status === "error") {
+          setError(String(result.error));
+          return;
+        }
+        id = action.id;
       } else {
-        setError(String(result.error));
+        const result = await commands.addPostProcessAction(
+          trimmedName,
+          finalPrompt,
+          finalLlmModelId,
+          icon,
+          triggerKey,
+          finalSpeechModelId,
+        );
+        if (result.status === "error") {
+          setError(String(result.error));
+          return;
+        }
+        id = result.data.id;
       }
+
+      if (makeActive && !wasActive) {
+        const result = await commands.setActiveMode(id);
+        if (result.status === "error") {
+          await refreshSettings();
+          setError(String(result.error));
+          return;
+        }
+      }
+
+      await refreshSettings();
+      if (action) {
+        onClose();
+      } else {
+        // Reopen as "edit" so the global shortcut can be assigned right away.
+        onCreated(id);
+      }
+    } catch (err) {
+      setError(String(err));
     } finally {
       setIsSaving(false);
     }
   }, [
     action,
-    canSave,
     name,
+    type,
     prompt,
     llmModelId,
+    speechModelId,
     icon,
     triggerKey,
+    makeActive,
+    wasActive,
     refreshSettings,
-    onSaved,
+    onClose,
+    onCreated,
+    t,
   ]);
 
   const handleDelete = useCallback(async () => {
-    if (!action) return;
+    if (!action || isBuiltIn) return;
+    const confirmed = await ask(
+      t("modes.dialog.deleteConfirm", { name: action.name }),
+      {
+        title: t("modes.dialog.deleteTitle"),
+        kind: "warning",
+        okLabel: t("common.delete"),
+        cancelLabel: t("common.cancel"),
+      },
+    );
+    if (!confirmed) return;
     const result = await commands.deletePostProcessAction(action.id);
     if (result.status === "ok") {
       await refreshSettings();
       onClose();
+    } else {
+      setError(String(result.error));
     }
-  }, [action, refreshSettings, onClose]);
+  }, [action, isBuiltIn, refreshSettings, onClose, t]);
 
   const footer = (
     <>
-      {action && (
-        <Button
-          variant="danger-ghost"
-          size="md"
-          onClick={handleDelete}
-          className="me-auto"
-        >
-          <Trash2 className="w-4 h-4" />
-          {t("common.delete")}
-        </Button>
-      )}
+      {action &&
+        (isBuiltIn ? (
+          <p className="me-auto text-xs text-text-muted">
+            {t("modes.dialog.cannotDeleteBuiltIn")}
+          </p>
+        ) : (
+          <Button
+            variant="danger-ghost"
+            size="md"
+            onClick={handleDelete}
+            className="me-auto"
+          >
+            <Trash2 className="w-4 h-4" />
+            {t("common.delete")}
+          </Button>
+        ))}
       <Button variant="secondary" size="md" onClick={onClose}>
         {t("common.cancel")}
       </Button>
@@ -199,7 +486,7 @@ const ModeDialog: React.FC<ModeDialogProps> = ({
         variant="primary"
         size="md"
         onClick={handleSave}
-        disabled={!canSave || isSaving}
+        disabled={!canSave}
       >
         {action ? t("common.save") : t("common.create")}
       </Button>
@@ -208,114 +495,171 @@ const ModeDialog: React.FC<ModeDialogProps> = ({
 
   return (
     <Dialog
-      open={open}
+      open
       onClose={onClose}
       title={action ? t("modes.dialog.editTitle") : t("modes.dialog.newTitle")}
-      description={t("modes.dialog.subtitle")}
       footer={footer}
+      maxWidthClassName="max-w-xl"
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              {t("settings.postProcessing.actions.name")}
-            </label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("settings.postProcessing.actions.namePlaceholder")}
-              variant="compact"
-              className="w-full"
+        <Field
+          label={t("modes.dialog.name")}
+          htmlFor="mode-name"
+          hint={
+            nameError ? (
+              <span className="text-danger">{nameError}</span>
+            ) : undefined
+          }
+        >
+          <Input
+            id="mode-name"
+            type="text"
+            value={name}
+            autoFocus={!action}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(null);
+            }}
+            placeholder={t("modes.dialog.namePlaceholder")}
+            className="w-full"
+          />
+        </Field>
+
+        <Field label={t("modes.dialog.icon")}>
+          <IconPicker value={icon} onChange={setIcon} />
+        </Field>
+
+        <Field
+          label={t("modes.dialog.type")}
+          hint={
+            type === "voice"
+              ? t("modes.dialog.typeVoiceHint")
+              : t("modes.dialog.typeAiHint")
+          }
+        >
+          <div
+            className={isBuiltIn ? "opacity-60 pointer-events-none" : ""}
+            aria-disabled={isBuiltIn}
+          >
+            <SegmentedControl<ModeType>
+              value={type}
+              onChange={changeType}
+              options={[
+                {
+                  value: "voice",
+                  label: t("modes.dialog.typeVoice"),
+                  icon: <Mic className="w-3.5 h-3.5" />,
+                },
+                {
+                  value: "ai",
+                  label: t("modes.dialog.typeAi"),
+                  icon: <Sparkles className="w-3.5 h-3.5" />,
+                },
+              ]}
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              {t("settings.postProcessing.actions.triggerKey")}
-            </label>
+        </Field>
+
+        {type === "ai" && (
+          <>
+            <Field
+              label={t("modes.dialog.prompt")}
+              htmlFor="mode-prompt"
+              hint={t("modes.dialog.promptHint")}
+            >
+              <Textarea
+                id="mode-prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={t("modes.dialog.promptPlaceholder")}
+                className="w-full block min-h-[140px]"
+              />
+            </Field>
+
+            <Field label={t("modes.dialog.languageModel")}>
+              {languageModelOptions.length > 0 ? (
+                <Dropdown
+                  selectedValue={llmModelId}
+                  options={languageModelOptions}
+                  onSelect={(value) => setLlmModelId(value)}
+                  placeholder={t("modes.dialog.languageModelPlaceholder")}
+                  className="w-full"
+                />
+              ) : (
+                <div className="rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-warning leading-relaxed">
+                    {t("modes.dialog.noLanguageModels")}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => {
+                      onClose();
+                      navigateTo("library");
+                    }}
+                  >
+                    {t("modes.dialog.openLibrary")}
+                  </Button>
+                </div>
+              )}
+            </Field>
+          </>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label={t("modes.dialog.voiceModel")}>
+            <Dropdown
+              selectedValue={speechModelId}
+              options={voiceModelOptions}
+              onSelect={(value) => setSpeechModelId(value)}
+              placeholder={t("modes.dialog.voiceModelDefaultShort")}
+              className="w-full"
+            />
+          </Field>
+          <Field label={t("modes.dialog.quickKey")}>
             <Dropdown
               selectedValue={triggerKey != null ? String(triggerKey) : "none"}
               options={triggerKeyOptions}
               onSelect={(value) =>
                 setTriggerKey(value === "none" ? null : Number(value))
               }
-              placeholder={t("settings.postProcessing.actions.noKey")}
-              className="w-[200px]"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            {t("settings.postProcessing.actions.icon")}
-          </label>
-          <IconPicker value={icon} onChange={setIcon} />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">
-            {t("settings.postProcessing.actions.prompt")}
-          </label>
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={t("settings.postProcessing.actions.promptPlaceholder")}
-            className="w-full block min-h-[140px] font-normal"
-          />
-          <p className="text-xs text-text-muted">
-            {t("settings.postProcessing.actions.promptHint")}
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">
-            {t("settings.postProcessing.actions.model")}
-          </label>
-          {modelOptions.length > 0 ? (
-            <Dropdown
-              selectedValue={llmModelId}
-              options={modelOptions}
-              onSelect={(value) => setLlmModelId(value)}
-              placeholder={t(
-                "settings.postProcessing.actions.modelPlaceholder",
-              )}
+              placeholder={t("modes.dialog.noKey")}
               className="w-full"
             />
-          ) : (
-            <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 flex items-center justify-between gap-3">
-              <p className="text-xs text-warning">
-                {t("modes.dialog.noModels")}
-              </p>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  onClose();
-                  navigateTo("models");
-                }}
-              >
-                {t("modes.dialog.addModel")}
-              </Button>
-            </div>
-          )}
+          </Field>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">
-            {t("settings.postProcessing.actions.shortcut")}
-          </label>
+        <Field label={t("modes.dialog.shortcut")}>
           {action ? (
             <ShortcutInput shortcutId={`ppa_${action.id}`} bare />
           ) : (
-            <p className="text-xs text-text-muted pt-1">
-              {t("settings.postProcessing.actions.shortcutAfterSave")}
+            <p className="text-xs text-text-muted">
+              {t("modes.dialog.shortcutAfterSave")}
             </p>
           )}
+        </Field>
+
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">
+              {t("modes.dialog.activeToggle")}
+            </p>
+            <p className="text-xs text-text-muted mt-0.5">
+              {t("modes.dialog.activeToggleHint")}
+            </p>
+          </div>
+          <Switch
+            checked={makeActive}
+            onChange={setMakeActive}
+            disabled={wasActive}
+            ariaLabel={t("modes.dialog.activeToggle")}
+          />
         </div>
 
         {error && (
-          <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2">
-            <p className="text-xs text-danger">{error}</p>
+          <div className="rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2.5">
+            <p className="text-xs text-danger break-words">{error}</p>
           </div>
         )}
       </div>
@@ -323,176 +667,145 @@ const ModeDialog: React.FC<ModeDialogProps> = ({
   );
 };
 
-interface ModeCardProps {
-  action: PostProcessAction;
-  isDefault: boolean;
-  modelLabel?: string;
-  isLocal: boolean;
-  shortcut?: string;
-  onClick: () => void;
-}
-
-const ModeCard: React.FC<ModeCardProps> = ({
-  action,
-  isDefault,
-  modelLabel,
-  isLocal,
-  shortcut,
-  onClick,
-}) => {
-  const { t } = useTranslation();
-  const Icon = getActionIcon(action.icon);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group wsm-card w-full flex items-center gap-3.5 px-4 py-3 hover:border-accent/50 transition-colors text-start"
-    >
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl wsm-gradient text-white shrink-0 shadow-sm">
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold truncate">{action.name}</p>
-          {isDefault && (
-            <Badge variant="primary">{t("modes.card.default")}</Badge>
-          )}
-        </div>
-        <p className="text-xs text-text-muted truncate mt-0.5 flex items-center gap-1.5">
-          {modelLabel ? (
-            <>
-              {isLocal ? (
-                <Cpu className="w-3 h-3 text-success" />
-              ) : (
-                <Globe className="w-3 h-3" />
-              )}
-              <span className="truncate">{modelLabel}</span>
-            </>
-          ) : (
-            <span className="text-warning">{t("modes.card.noModel")}</span>
-          )}
-        </p>
-      </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {action.trigger_key != null && <Kbd>{action.trigger_key}</Kbd>}
-        {shortcut && <KeyCombo combination={shortcut} />}
-      </div>
-    </button>
-  );
-};
+/* ------------------------------------------------------------------------ */
+/* Page                                                                     */
+/* ------------------------------------------------------------------------ */
 
 export const ModesPage: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, updateSetting, isUpdating } = useSettings();
+  const { settings } = useSettings();
   const osType = useOsType();
+  const speechModels = useModelStore((state) => state.models);
+  const currentModelId = useModelStore((state) => state.currentModel);
+  const localLlms = useLocalLlmStore((state) => state.models);
 
-  const actions = settings?.post_process_actions || [];
-  const models = settings?.llm_models || [];
-  const bindings = settings?.bindings || {};
-  const defaultShortcutEnabled = settings?.post_process_enabled ?? false;
+  const actions = settings?.post_process_actions ?? [];
+  const llmModels = settings?.llm_models ?? [];
+  const activeModeId = settings?.active_mode_id ?? null;
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Home's "Create a mode" (and other pages) ask for the create dialog. The
+  // page is lazy-loaded, so an action requested before it mounted is picked
+  // up from the pending slot; later ones arrive as events.
+  useEffect(() => {
+    if (consumePendingPageAction() === CREATE_MODE_ACTION) {
+      setEditingId(NEW_MODE_ID);
+    }
+    const onPageAction = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === CREATE_MODE_ACTION) {
+        consumePendingPageAction();
+        setEditingId(NEW_MODE_ID);
+      }
+    };
+    window.addEventListener("wsm:page-action", onPageAction);
+    return () => window.removeEventListener("wsm:page-action", onPageAction);
+  }, []);
+
   const editingAction =
-    editingId && editingId !== "new"
+    editingId && editingId !== NEW_MODE_ID
       ? (actions.find((a) => a.id === editingId) ?? null)
       : null;
-  const dialogOpen = editingId !== null;
+  const dialogOpen = editingId === NEW_MODE_ID || editingAction !== null;
 
-  const modelFor = (id: string | null | undefined) =>
-    models.find((m) => m.id === id);
+  const llmFor = (action: PostProcessAction) =>
+    action.llm_model_id
+      ? llmModels.find((m) => m.id === action.llm_model_id)
+      : undefined;
 
-  const actionShortcut = (id: string) => {
-    const raw = bindings[`ppa_${id}`]?.current_binding;
-    return raw && raw.trim() ? formatKeyCombination(raw, osType) : undefined;
+  const tilesFor = (action: PostProcessAction): ModelTile[] => {
+    const tiles: ModelTile[] = [];
+    const speechId = action.speech_model_id || currentModelId;
+    const speechModel = speechModels.find((m) => m.id === speechId);
+    if (speechModel) {
+      tiles.push({
+        vendor: speechModel.vendor || "whispersm",
+        label: getTranslatedModelName(speechModel, t),
+      });
+    }
+    if (!isVoiceOnly(action)) {
+      const llm = llmFor(action);
+      if (llm) {
+        const vendor =
+          llm.provider_id === LOCAL_PROVIDER_ID
+            ? localLlmVendor(
+                localLlms.find((m) => m.id === llm.model)?.family ?? "",
+              )
+            : providerVendor(llm.provider_id);
+        tiles.push({ vendor, label: llm.label });
+      }
+    }
+    return tiles;
   };
+
+  const changeModeRaw = settings?.bindings?.change_mode?.current_binding ?? "";
+  const changeModeCombo = changeModeRaw.trim()
+    ? formatKeyCombination(changeModeRaw, osType)
+    : "";
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title={t("modes.title")}
-        description={t("modes.description")}
-        actions={
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => setEditingId("new")}
-          >
-            <Plus className="w-4 h-4" />
-            {t("modes.newMode")}
-          </Button>
-        }
-      />
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <h1 className="text-[22px] font-semibold tracking-tight leading-tight truncate">
+            {t("modes.title")}
+          </h1>
+          <InfoTip text={t("modes.info")} />
+        </div>
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={() => setEditingId(NEW_MODE_ID)}
+          className="shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          {t("modes.create")}
+        </Button>
+      </div>
 
-      {actions.length === 0 ? (
-        <div className="wsm-card flex flex-col items-center justify-center text-center py-14 px-6 border-dashed">
-          <div className="w-12 h-12 rounded-2xl wsm-gradient text-white flex items-center justify-center mb-3 shadow">
-            <Sparkles className="w-6 h-6" />
+      <div>
+        {actions.length === 0 ? (
+          <div className="wsm-card border-dashed px-6 py-10 text-center">
+            <p className="text-[15px] font-medium">{t("modes.emptyTitle")}</p>
+            <p className="text-[13px] text-text-muted mt-1">
+              {t("modes.empty")}
+            </p>
           </div>
-          <p className="text-sm font-medium">{t("modes.emptyTitle")}</p>
-          <p className="text-xs text-text-muted mt-1 max-w-xs">
-            {t("modes.empty")}
-          </p>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => setEditingId("new")}
-            className="mt-4"
-          >
-            <Plus className="w-4 h-4" />
-            {t("modes.newMode")}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {actions.map((action, index) => {
-            const model = modelFor(action.llm_model_id);
-            return (
-              <ModeCard
-                key={action.id}
-                action={action}
-                isDefault={index === 0}
-                modelLabel={model?.label}
-                isLocal={model?.provider_id === LOCAL_PROVIDER_ID}
-                shortcut={actionShortcut(action.id)}
-                onClick={() => setEditingId(action.id)}
-              />
-            );
-          })}
-          <p className="text-xs text-text-muted px-1 pt-1">{t("modes.hint")}</p>
-        </div>
-      )}
-
-      <SettingsGroup
-        title={t("modes.aiShortcut.title")}
-        description={t("modes.aiShortcut.description")}
-      >
-        <ToggleSwitch
-          checked={defaultShortcutEnabled}
-          onChange={(checked) => updateSetting("post_process_enabled", checked)}
-          isUpdating={isUpdating("post_process_enabled")}
-          label={t("settings.postProcessing.defaultShortcut.toggleLabel")}
-          description={t(
-            "settings.postProcessing.defaultShortcut.toggleDescription",
-          )}
-          grouped={true}
-        />
-        {defaultShortcutEnabled && (
-          <ShortcutInput
-            shortcutId="transcribe_with_post_process"
-            grouped={true}
-          />
+        ) : (
+          actions.map((action) => (
+            <ModeRow
+              key={action.id}
+              action={action}
+              isActive={action.id === activeModeId}
+              tiles={tilesFor(action)}
+              llmLabel={llmFor(action)?.label ?? null}
+              onClick={() => setEditingId(action.id)}
+            />
+          ))
         )}
-      </SettingsGroup>
+
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => navigateTo("configuration")}
+            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer"
+          >
+            {changeModeCombo && (
+              <KeyCombo combination={changeModeCombo} size="md" />
+            )}
+            <span className="text-[15px] text-text-muted">
+              {t("modes.changeActive")}
+            </span>
+          </button>
+        </div>
+      </div>
 
       {dialogOpen && (
         <ModeDialog
-          key={editingId ?? "new"}
-          open={dialogOpen}
+          key={editingId ?? NEW_MODE_ID}
           action={editingAction}
           onClose={() => setEditingId(null)}
-          onSaved={(id) => setEditingId(id)}
+          onCreated={(id) => setEditingId(id)}
         />
       )}
     </div>

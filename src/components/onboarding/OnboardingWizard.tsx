@@ -574,9 +574,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   );
 
   const renderSpeech = () => {
-    const recommended = models.filter((m) => m.is_recommended);
+    const recommended = models.filter((m) => m.is_recommended && !m.is_cloud);
     const others = models
-      .filter((m) => !m.is_recommended)
+      .filter((m) => !m.is_recommended && !m.is_cloud)
       .sort((a, b) => Number(a.size_mb) - Number(b.size_mb));
     const list = showAllSpeech ? [...recommended, ...others] : recommended;
     return (

@@ -1,105 +1,123 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ArrowRight,
-  Check,
-  Copy,
-  Cpu,
-  Mic,
+  BookOpen,
+  ChevronsUpDown,
+  CircleDot,
+  Pointer,
+  Settings,
   Sparkles,
-  Wand2,
+  type LucideIcon,
 } from "lucide-react";
-import {
-  commands,
-  events,
-  type HistoryEntry,
-  type HistoryStats,
-} from "@/bindings";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { commands, events, type HistoryStats } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
-import { useModelStore } from "@/stores/modelStore";
-import { useLocalLlmStore } from "@/stores/localLlmStore";
 import { formatKeyCombination } from "@/lib/utils/keyboard";
-import { getTranslatedModelName } from "@/lib/utils/modelTranslation";
-import { getActionIcon } from "@/lib/constants/actionIcons";
-import { navigateTo } from "@/lib/navigation";
-import { formatDateTime, formatRelativeTime } from "@/utils/dateFormat";
-import { Badge, Button, Kbd, KeyCombo } from "@/components/ui";
-import { Dropdown } from "@/components/ui";
+import { navigateTo, requestPageAction } from "@/lib/navigation";
+import { CHANGELOG, RELEASES_URL } from "@/lib/changelog";
+import { KeyCombo } from "@/components/ui";
+import { PopoverMenu } from "@/components/ui/PopoverMenu";
 
-const StatTile: React.FC<{
-  label: string;
-  value: string;
-  hint?: string;
-  compact?: boolean;
-}> = ({ label, value, hint, compact = false }) => (
-  <div className="wsm-card px-4 py-3 flex flex-col gap-0.5 min-w-0">
-    <span className="text-[11px] uppercase tracking-wide font-semibold text-text-muted truncate">
-      {label}
-    </span>
-    <span
-      className={`font-semibold tabular-nums tracking-tight ${
-        compact ? "text-base leading-snug truncate" : "text-2xl"
-      }`}
-      title={value}
-    >
+type Period = "thisWeek" | "allTime";
+
+const PERIOD_STORAGE_KEY = "wsm.homePeriod";
+const WEEK_SECONDS = 7 * 24 * 60 * 60;
+const HOUR_MS = 3_600_000;
+const MINUTE_MS = 60_000;
+
+const readStoredPeriod = (): Period => {
+  try {
+    const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
+    return stored === "thisWeek" ? "thisWeek" : "allTime";
+  } catch {
+    return "allTime";
+  }
+};
+
+const storePeriod = (period: Period) => {
+  try {
+    window.localStorage.setItem(PERIOD_STORAGE_KEY, period);
+  } catch {
+    // localStorage may be unavailable; the preference is not essential
+  }
+};
+
+/** `since` argument of getHistoryStats for a period (unix seconds or null). */
+const periodSince = (period: Period): number | null =>
+  period === "thisWeek" ? Math.floor(Date.now() / 1000) - WEEK_SECONDS : null;
+
+/** Parse an ISO "YYYY-MM-DD" date as a local calendar day. */
+const parseLocalDate = (iso: string): Date => {
+  const [year, month, day] = iso.split("-").map((part) => Number(part));
+  if (!year || !month || !day) return new Date(iso);
+  return new Date(year, month - 1, day);
+};
+
+const Stat: React.FC<{ value: string; label: React.ReactNode }> = ({
+  value,
+  label,
+}) => (
+  <div className="flex flex-col gap-1 min-w-0">
+    <span className="text-[22px] font-semibold leading-tight tracking-tight tabular-nums text-text truncate">
       {value}
     </span>
-    {hint && <span className="text-xs text-text-muted truncate">{hint}</span>}
+    <span className="text-[15px] text-text-muted leading-snug flex items-center gap-1.5 min-w-0">
+      {label}
+    </span>
   </div>
+);
+
+const GetStartedRow: React.FC<{
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onClick: () => void;
+  trailing?: React.ReactNode;
+}> = ({ icon: Icon, title, description, onClick, trailing }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="w-full min-h-[64px] flex items-center justify-between gap-4 px-6 py-3 text-start cursor-pointer transition-colors hover:bg-surface-2 focus:outline-none focus-visible:bg-surface-2"
+  >
+    <span className="flex items-center gap-5 min-w-0">
+      <span className="w-8 shrink-0 flex items-center justify-center">
+        <Icon className="w-5 h-5 text-text-muted" strokeWidth={1.75} />
+      </span>
+      <span className="flex flex-col min-w-0">
+        <span className="text-[15px] font-medium text-text leading-snug">
+          {title}
+        </span>
+        <span className="text-[13px] text-text-muted leading-snug">
+          {description}
+        </span>
+      </span>
+    </span>
+    {trailing && <span className="shrink-0">{trailing}</span>}
+  </button>
 );
 
 export const HomePage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const osType = useOsType();
-  const { settings, updateSetting, audioDevices, refreshAudioDevices } =
-    useSettings();
-  const models = useModelStore((state) => state.models);
-  const currentModel = useModelStore((state) => state.currentModel);
-  const localModels = useLocalLlmStore((state) => state.models);
-  const localStatus = useLocalLlmStore((state) => state.status);
+  const { settings } = useSettings();
+  const [period, setPeriod] = useState<Period>(readStoredPeriod);
   const [stats, setStats] = useState<HistoryStats | null>(null);
-  const [recent, setRecent] = useState<HistoryEntry[]>([]);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-
-  const bindings = settings?.bindings ?? {};
-  const transcribeBinding = bindings["transcribe"]?.current_binding ?? "";
-  const postProcessBinding =
-    bindings["transcribe_with_post_process"]?.current_binding ?? "";
-  const pushToTalk = settings?.push_to_talk ?? true;
-  const actions = settings?.post_process_actions ?? [];
-  const savedModels = settings?.llm_models ?? [];
-
-  const speechModel = models.find((m) => m.id === currentModel);
-  const selectedMicrophone =
-    settings?.selected_microphone === "default"
-      ? "Default"
-      : (settings?.selected_microphone ?? "Default");
-  const microphoneOptions = audioDevices.map((device) => ({
-    value: device.name,
-    label: device.name,
-  }));
-  const downloadedLocal = localModels.filter((m) => m.is_downloaded);
-  const numberFormat = useMemo(
-    () => new Intl.NumberFormat(i18n.language),
-    [i18n.language],
-  );
 
   const loadStats = useCallback(async () => {
     try {
-      const [statsResult, entriesResult] = await Promise.all([
-        commands.getHistoryStats(),
-        commands.getHistoryEntries(null, 3),
-      ]);
-      if (statsResult.status === "ok") setStats(statsResult.data);
-      if (entriesResult.status === "ok") setRecent(entriesResult.data.entries);
+      const result = await commands.getHistoryStats(periodSince(period));
+      if (result.status === "ok") setStats(result.data);
     } catch (error) {
-      console.error("Failed to load home stats:", error);
+      console.error("Failed to load history stats:", error);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
     const unlisten = events.historyUpdatePayload.listen(() => {
       loadStats();
     });
@@ -108,334 +126,209 @@ export const HomePage: React.FC = () => {
     };
   }, [loadStats]);
 
-  const copyEntry = async (entry: HistoryEntry) => {
-    try {
-      await navigator.clipboard.writeText(
-        entry.post_processed_text ?? entry.transcription_text,
-      );
-      setCopiedId(entry.id);
-      setTimeout(() => setCopiedId(null), 1500);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-    }
+  const selectPeriod = (value: string) => {
+    const next: Period = value === "thisWeek" ? "thisWeek" : "allTime";
+    setPeriod(next);
+    storePeriod(next);
   };
 
-  const aiStatusLabel = (() => {
-    if (localStatus?.is_generating) return t("home.ai.generating");
-    if (localStatus?.is_loading) return t("home.ai.loading");
-    if (downloadedLocal.length > 0) {
-      const loaded = downloadedLocal.find(
-        (m) => m.id === localStatus?.loaded_model_id,
-      );
-      return loaded
-        ? t("home.ai.loaded", { model: loaded.name })
-        : t("home.ai.ready", { count: downloadedLocal.length });
-    }
-    if (savedModels.length > 0) return t("home.ai.cloudOnly");
-    return t("home.ai.none");
-  })();
+  const numberFormat = useMemo(
+    () => new Intl.NumberFormat(i18n.language),
+    [i18n.language],
+  );
+  const dayFormat = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.language, {
+        month: "short",
+        day: "numeric",
+      }),
+    [i18n.language],
+  );
+
+  const averageWpm = Math.round(stats?.average_wpm ?? 0);
+  const timeSavedMs = stats?.time_saved_ms ?? 0;
+  // `count` drives pluralisation; `replace` shows the locale-formatted number.
+  const savedCount =
+    timeSavedMs >= HOUR_MS
+      ? Math.round(timeSavedMs / HOUR_MS)
+      : Math.round(timeSavedMs / MINUTE_MS);
+  const timeSaved = t(
+    timeSavedMs >= HOUR_MS ? "home.stats.hours" : "home.stats.minutes",
+    {
+      count: savedCount,
+      replace: { count: numberFormat.format(savedCount) },
+    },
+  );
+
+  const transcribeBinding =
+    settings?.bindings?.["transcribe"]?.current_binding ?? "";
+  const transcribeCombo = transcribeBinding
+    ? formatKeyCombination(transcribeBinding, osType)
+    : "";
+
+  const periodLabel =
+    period === "thisWeek"
+      ? t("home.period.thisWeek")
+      : t("home.period.allTime");
+
+  // Modes is lazy-loaded: the pending page action is consumed by the Modes
+  // page when it mounts (or received as an event if it is already mounted).
+  const openCreateMode = () => {
+    requestPageAction("create-mode");
+    navigateTo("modes");
+  };
+
+  const openReleases = () => {
+    openUrl(RELEASES_URL).catch((error) =>
+      console.error("Failed to open releases page:", error),
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Hero */}
-      <section className="wsm-card relative overflow-hidden px-6 py-6">
-        <div
-          className="absolute -top-24 -end-24 w-72 h-72 rounded-full opacity-30 blur-3xl wsm-gradient pointer-events-none"
-          aria-hidden="true"
-        />
-        <div className="relative flex flex-col gap-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-                {t("home.hero.eyebrow")}
-              </p>
-              <h1 className="text-[26px] font-semibold tracking-tight mt-1">
-                {t("home.hero.title")}
-              </h1>
-              <p className="text-sm text-text-muted mt-1.5 max-w-lg leading-relaxed">
-                {pushToTalk
-                  ? t("home.hero.subtitleHold")
-                  : t("home.hero.subtitleToggle")}
-              </p>
-            </div>
-            <div className="hidden sm:flex w-12 h-12 rounded-2xl wsm-gradient items-center justify-center shadow-lg shrink-0">
-              <Mic className="w-6 h-6 text-white" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs text-text-muted">
-                {t("home.hero.dictate")}
-              </span>
-              {transcribeBinding ? (
-                <KeyCombo
-                  combination={formatKeyCombination(transcribeBinding, osType)}
-                  size="lg"
-                />
-              ) : (
-                <Kbd size="lg">{t("settings.general.shortcut.clickToSet")}</Kbd>
-              )}
-            </div>
-            {settings?.post_process_enabled && postProcessBinding && (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs text-text-muted">
-                  {t("home.hero.dictateWithAi")}
-                </span>
-                <KeyCombo
-                  combination={formatKeyCombination(postProcessBinding, osType)}
-                  size="lg"
-                />
-              </div>
-            )}
-            <div className="ms-auto flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => navigateTo("settings")}
+      {/* Period picker + stats */}
+      <div className="flex flex-col gap-3">
+        <div>
+          <PopoverMenu
+            items={[
+              { value: "thisWeek", label: t("home.period.thisWeek") },
+              { value: "allTime", label: t("home.period.allTime") },
+            ]}
+            selected={period}
+            onSelect={selectPeriod}
+            menuClassName="w-44"
+            trigger={() => (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[17px] font-medium text-text-muted hover:text-text transition-colors cursor-pointer"
               >
-                {t("home.hero.changeShortcut")}
-              </Button>
-            </div>
-          </div>
+                <span>{periodLabel}</span>
+                <ChevronsUpDown className="w-4 h-4 text-text-muted" />
+              </button>
+            )}
+          />
+        </div>
 
-          {actions.length > 0 && (
-            <p className="text-xs text-text-muted flex items-center gap-1.5">
-              <Wand2 className="w-3.5 h-3.5 text-accent" />
-              {t("home.hero.modesHint")}
-            </p>
-          )}
+        <div className="wsm-card px-8 py-6 grid grid-cols-4 gap-6">
+          <Stat
+            value={t("home.stats.wpm", { value: averageWpm })}
+            label={t("home.stats.averageSpeed")}
+          />
+          <Stat
+            value={numberFormat.format(stats?.total_words ?? 0)}
+            label={t("home.stats.words")}
+          />
+          <Stat
+            value={numberFormat.format(stats?.apps_used ?? 0)}
+            label={t("home.stats.appsUsed")}
+          />
+          <Stat
+            value={timeSaved}
+            label={
+              <>
+                <span className="truncate">
+                  {period === "thisWeek"
+                    ? t("home.stats.savedThisWeek")
+                    : t("home.stats.savedAllTime")}
+                </span>
+                <PopoverMenu
+                  items={[]}
+                  onSelect={() => undefined}
+                  align="end"
+                  menuClassName="w-64"
+                  header={
+                    <p className="px-2.5 py-1.5 text-[13px] leading-snug text-text-muted">
+                      {t("home.stats.savedHint")}
+                    </p>
+                  }
+                  trigger={() => (
+                    <button
+                      type="button"
+                      aria-label={t("home.stats.savedHint")}
+                      className="flex items-center text-text-muted hover:text-text transition-colors cursor-pointer"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                />
+              </>
+            }
+          />
+        </div>
+      </div>
+
+      {/* Get started */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[17px] font-semibold text-text px-0.5">
+          {t("home.getStarted.title")}
+        </h2>
+        <div className="wsm-card overflow-hidden divide-y divide-border">
+          <GetStartedRow
+            icon={CircleDot}
+            title={t("home.getStarted.startRecording.title")}
+            description={t("home.getStarted.startRecording.description")}
+            onClick={() => navigateTo("configuration")}
+            trailing={
+              transcribeCombo ? (
+                <KeyCombo combination={transcribeCombo} size="md" />
+              ) : (
+                <span className="text-[13px] text-text-muted">
+                  {t("home.getStarted.setShortcut")}
+                </span>
+              )
+            }
+          />
+          <GetStartedRow
+            icon={Pointer}
+            title={t("home.getStarted.shortcuts.title")}
+            description={t("home.getStarted.shortcuts.description")}
+            onClick={() => navigateTo("configuration")}
+          />
+          <GetStartedRow
+            icon={Sparkles}
+            title={t("home.getStarted.createMode.title")}
+            description={t("home.getStarted.createMode.description")}
+            onClick={openCreateMode}
+          />
+          <GetStartedRow
+            icon={BookOpen}
+            title={t("home.getStarted.vocabulary.title")}
+            description={t("home.getStarted.vocabulary.description")}
+            onClick={() => navigateTo("vocabulary")}
+          />
         </div>
       </section>
 
-      {/* Status */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => navigateTo("models")}
-          className="wsm-card px-4 py-3 flex items-center gap-3 text-start hover:border-accent/50 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent flex items-center justify-center shrink-0">
-            <Mic className="w-4.5 h-4.5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted">
-              {t("home.status.speechModel")}
-            </p>
-            <p className="text-sm font-medium truncate">
-              {speechModel
-                ? getTranslatedModelName(speechModel, t)
-                : t("home.status.noSpeechModel")}
-            </p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-text-muted shrink-0" />
-        </button>
-        <button
-          type="button"
-          onClick={() => navigateTo("models")}
-          className="wsm-card px-4 py-3 flex items-center gap-3 text-start hover:border-accent/50 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent flex items-center justify-center shrink-0">
-            <Cpu className="w-4.5 h-4.5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted">
-              {t("home.status.aiModel")}
-            </p>
-            <p className="text-sm font-medium truncate">{aiStatusLabel}</p>
-          </div>
-          {downloadedLocal.length > 0 ? (
-            <Badge variant="success">{t("home.status.onDevice")}</Badge>
-          ) : (
-            <ArrowRight className="w-4 h-4 text-text-muted shrink-0" />
-          )}
-        </button>
-      </section>
-
-      {/* Stats */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatTile
-          label={t("home.stats.today")}
-          value={numberFormat.format(stats?.entries_today ?? 0)}
-          hint={t("home.stats.words", {
-            count: stats?.words_today ?? 0,
-            formatted: numberFormat.format(stats?.words_today ?? 0),
-          })}
-        />
-        <StatTile
-          label={t("home.stats.total")}
-          value={numberFormat.format(stats?.total_entries ?? 0)}
-          hint={t("home.stats.words", {
-            count: stats?.total_words ?? 0,
-            formatted: numberFormat.format(stats?.total_words ?? 0),
-          })}
-        />
-        <StatTile
-          label={t("home.stats.enhanced")}
-          value={numberFormat.format(stats?.post_processed_entries ?? 0)}
-          hint={t("home.stats.enhancedHint")}
-        />
-        <StatTile
-          compact
-          label={t("home.stats.lastUsed")}
-          value={
-            stats?.last_timestamp
-              ? formatRelativeTime(String(stats.last_timestamp), i18n.language)
-              : "—"
-          }
-          hint={
-            stats?.last_timestamp
-              ? formatDateTime(String(stats.last_timestamp), i18n.language)
-              : t("home.stats.never")
-          }
-        />
-      </section>
-
-      {/* Modes */}
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-[13px] font-semibold tracking-tight">
-            {t("home.modes.title")}
+      {/* What's new */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4 px-0.5">
+          <h2 className="text-[17px] font-semibold text-text">
+            {t("home.whatsNew.title")}
           </h2>
           <button
             type="button"
-            onClick={() => navigateTo("modes")}
-            className="text-xs font-medium text-accent hover:underline"
+            onClick={openReleases}
+            className="text-[15px] text-text-muted hover:text-text transition-colors cursor-pointer"
           >
-            {t("home.modes.manage")}
+            {t("home.whatsNew.viewAll")}
           </button>
         </div>
-        {actions.length === 0 ? (
-          <button
-            type="button"
-            onClick={() => navigateTo("modes")}
-            className="wsm-card px-4 py-4 flex items-center gap-3 text-start hover:border-accent/50 transition-colors"
-          >
-            <Sparkles className="w-5 h-5 text-accent" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">
-                {t("home.modes.emptyTitle")}
-              </p>
-              <p className="text-xs text-text-muted">{t("home.modes.empty")}</p>
+        <div className="wsm-card divide-y divide-border">
+          {CHANGELOG.map((entry) => (
+            <div key={entry.id} className="flex items-start gap-6 px-8 py-4">
+              <span className="w-[80px] shrink-0 text-[15px] text-text-muted leading-snug tabular-nums">
+                {dayFormat.format(parseLocalDate(entry.date))}
+              </span>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[15px] font-semibold text-text leading-snug">
+                  {t(`home.changelog.${entry.id}.title`)}
+                </span>
+                <span className="text-[13px] text-text-muted leading-snug line-clamp-2">
+                  {t(`home.changelog.${entry.id}.description`)}
+                </span>
+              </div>
             </div>
-            <ArrowRight className="w-4 h-4 text-text-muted" />
-          </button>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {actions.slice(0, 6).map((action) => {
-              const Icon = getActionIcon(action.icon);
-              const model = savedModels.find(
-                (m) => m.id === action.llm_model_id,
-              );
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => navigateTo("modes")}
-                  className="wsm-card px-3 py-2.5 flex items-center gap-2.5 text-start hover:border-accent/50 transition-colors min-w-0"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-accent-soft text-accent flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">
-                      {action.name}
-                    </p>
-                    <p className="text-[11px] text-text-muted truncate">
-                      {model?.label ?? t("home.modes.noModel")}
-                    </p>
-                  </div>
-                  {action.trigger_key != null && (
-                    <Kbd size="sm">{action.trigger_key}</Kbd>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Recent transcriptions */}
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2 min-w-0">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-[13px] font-semibold tracking-tight">
-              {t("home.recent.title")}
-            </h2>
-            <button
-              type="button"
-              onClick={() => navigateTo("history")}
-              className="text-xs font-medium text-accent hover:underline"
-            >
-              {t("home.recent.viewAll")}
-            </button>
-          </div>
-          <div className="wsm-card divide-y divide-border">
-            {recent.length === 0 ? (
-              <p className="px-4 py-5 text-sm text-text-muted text-center">
-                {t("home.recent.empty")}
-              </p>
-            ) : (
-              recent.map((entry) => {
-                const text =
-                  entry.post_processed_text ?? entry.transcription_text;
-                const formattedDate = formatDateTime(
-                  String(entry.timestamp),
-                  i18n.language,
-                );
-                return (
-                  <div
-                    key={entry.id}
-                    className="px-4 py-3 flex items-start gap-3 min-w-0"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm leading-relaxed line-clamp-2 select-text">
-                        {text || t("settings.history.transcriptionFailed")}
-                      </p>
-                      <p className="text-[11px] text-text-muted mt-1 flex items-center gap-2">
-                        <span>{formattedDate}</span>
-                        {entry.post_processed_text && (
-                          <Badge variant="primary">
-                            <Sparkles className="w-2.5 h-2.5" />
-                            {t("settings.history.processed")}
-                          </Badge>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => copyEntry(entry)}
-                      className="p-1.5 rounded-md text-text-muted hover:text-accent hover:bg-accent-soft transition-colors shrink-0"
-                      title={t("settings.history.copyToClipboard")}
-                    >
-                      {copiedId === entry.id ? (
-                        <Check className="w-4 h-4 text-success" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-        <div className="wsm-card px-4 py-2.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Mic className="w-4 h-4 text-text-muted shrink-0" />
-            <span className="text-sm font-medium">
-              {t("home.microphone.title")}
-            </span>
-          </div>
-          <Dropdown
-            options={microphoneOptions}
-            selectedValue={selectedMicrophone}
-            onSelect={(value) => updateSetting("selected_microphone", value)}
-            onRefresh={refreshAudioDevices}
-            className="w-[260px]"
-            align="end"
-            placeholder={t("settings.sound.microphone.placeholder")}
-          />
+          ))}
         </div>
       </section>
     </div>
