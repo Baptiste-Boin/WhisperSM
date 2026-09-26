@@ -628,6 +628,8 @@ pub fn run(cli_args: CliArgs) {
             }
 
             let mut settings = get_settings(&app.handle());
+            // Write Documents/WhisperSM/modes/*.json right away.
+            storage::mirror_modes(&settings);
 
             // CLI --debug flag overrides debug_mode and log level (runtime-only, not persisted)
             if cli_args.debug {
