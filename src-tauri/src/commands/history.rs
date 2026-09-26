@@ -39,6 +39,12 @@ pub async fn apply_action_to_history_entry(
                 .to_string()
         })?;
 
+    history_manager.update_meta_text(
+        &entry.file_name,
+        &entry.transcription_text,
+        &processed,
+        Some(&action.prompt),
+    );
     history_manager
         .update_transcription(
             id,
@@ -150,6 +156,12 @@ pub async fn retry_history_entry_transcription(
 
     let processed =
         process_transcription_output(&app, &transcription, entry.post_process_requested).await;
+    history_manager.update_meta_text(
+        &entry.file_name,
+        &transcription,
+        &processed.final_text,
+        processed.post_process_prompt.as_deref(),
+    );
     history_manager
         .update_transcription(
             id,

@@ -1,12 +1,17 @@
 {
   "tray": {
-    "settings": "Paramètres...",
     "checkUpdates": "Rechercher des mises à jour...",
     "copyLastTranscript": "Copier la dernière transcription",
     "unloadModel": "Décharger le modèle",
     "model": "Modèle",
     "quit": "Quitter",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "startRecording": "Démarrer l'enregistrement",
+    "stopRecording": "Arrêter l'enregistrement",
+    "mode": "Mode",
+    "openApp": "Ouvrir WhisperSM",
+    "history": "Historique…",
+    "openRecordings": "Ouvrir le dossier des enregistrements"
   },
   "sidebar": {
     "general": "Général",
@@ -202,71 +207,31 @@
     "noModelDownloadRequired": "Aucun Modèle - Téléchargement Requis",
     "deleteModel": "Supprimer {{modelName}}",
     "downloadSpeed": "{{speed}} Mo/s",
+    "cancel": "Annuler",
+    "cancelDownload": "Annuler le téléchargement",
     "capabilities": {
       "languageSelection": "Prend en charge plusieurs langues d'entrée",
-      "multiLanguage": "Multilingue",
-      "translation": "Peut traduire en anglais",
-      "translate": "Traduire en anglais",
       "singleLanguage": "Prend en charge uniquement cette langue",
-      "languageOnly": "{{language}} uniquement"
-    },
-    "cancel": "Annuler",
-    "cancelDownload": "Annuler le téléchargement"
+      "multiLanguage": "Multilingue",
+      "languageOnly": "{{language}} uniquement",
+      "translation": "Peut traduire en anglais",
+      "translate": "Traduire en anglais"
+    }
   },
   "settings": {
     "modelSettings": {
       "title": "Paramètres de {{model}}",
       "noSettingsNeeded": "Ce modèle fonctionne automatiquement sans configuration nécessaire."
     },
-    "models": {
-      "title": "Modèles de Transcription",
-      "description": "Sélectionnez un modèle de transcription ou téléchargez des modèles supplémentaires. Différents modèles offrent différents niveaux de précision et de vitesse.",
-      "downloaded": "Téléchargés",
-      "available": "Disponibles au Téléchargement",
-      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {{modelName}} ? Vous devrez le télécharger à nouveau pour l'utiliser.",
-      "deleteActiveConfirm": "{{modelName}} est votre modèle actif. Le supprimer arrêtera les transcriptions jusqu'à ce que vous sélectionniez un nouveau modèle. Êtes-vous sûr ?",
-      "deleteTitle": "Supprimer le modèle",
-      "filters": {
-        "all": "Tous",
-        "multiLanguage": "Multilingue",
-        "translation": "Traduction",
-        "allLanguages": "Toutes les langues"
-      },
-      "noModelsMatch": "Aucun modèle ne correspond à ce filtre.",
-      "yourModels": "Modèles téléchargés",
-      "availableModels": "Disponibles au téléchargement",
-      "languageModels": {
-        "description": "Ajoutez les modèles de langage à utiliser pour le post-traitement. Renseignez la clé API du fournisseur une fois, puis choisissez un modèle.",
-        "addModel": "Ajouter un modèle",
-        "provider": "Fournisseur",
-        "apiKey": "Clé API",
-        "apiKeyPlaceholder": "Saisir la clé API",
-        "model": "Modèle",
-        "modelPlaceholder": "Rechercher ou saisir un modèle",
-        "useModel": "Utiliser « {{model}} »",
-        "fetchModels": "Actualiser les modèles",
-        "label": "Libellé (optionnel)",
-        "labelPlaceholder": "Nom d’affichage de ce modèle"
-      },
-      "tabs": {
-        "transcription": "Transcription",
-        "processing": "Processing"
-      },
-      "processingModels": {
-        "title": "Processing Models",
-        "description": "Save LLM models for use in post-processing actions.",
-        "noModels": "No processing models saved yet. Add one to use in your actions.",
-        "addModel": "Add Processing Model",
-        "provider": "Provider",
-        "apiKey": "API Key",
-        "apiKeyPlaceholder": "Enter API key",
-        "model": "Model",
-        "modelPlaceholder": "Select or type a model",
-        "save": "Save",
-        "cancel": "Cancel",
-        "fetchModels": "Fetch models",
-        "alreadySaved": "This model is already saved."
-      }
+    "longAudioModel": {
+      "title": "Long Audio Model",
+      "description": "Automatically switch to a different model when recording duration exceeds the threshold.",
+      "modelLabel": "Model for long recordings",
+      "modelDescription": "Select a model to use for recordings longer than the threshold.",
+      "thresholdLabel": "Duration threshold (seconds)",
+      "thresholdDescription": "Switch to the long audio model when recording exceeds this duration.",
+      "disabled": "Disabled",
+      "seconds": "{{value}}s"
     },
     "general": {
       "title": "Général",
@@ -317,6 +282,56 @@
       "pushToTalk": {
         "label": "Appuyer pour parler",
         "description": "Maintenez pour enregistrer, relâchez pour arrêter"
+      }
+    },
+    "models": {
+      "title": "Modèles de Transcription",
+      "description": "Sélectionnez un modèle de transcription ou téléchargez des modèles supplémentaires. Différents modèles offrent différents niveaux de précision et de vitesse.",
+      "tabs": {
+        "transcription": "Transcription",
+        "processing": "Processing"
+      },
+      "yourModels": "Modèles téléchargés",
+      "availableModels": "Disponibles au téléchargement",
+      "downloaded": "Téléchargés",
+      "available": "Disponibles au Téléchargement",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {{modelName}} ? Vous devrez le télécharger à nouveau pour l'utiliser.",
+      "deleteActiveConfirm": "{{modelName}} est votre modèle actif. Le supprimer arrêtera les transcriptions jusqu'à ce que vous sélectionniez un nouveau modèle. Êtes-vous sûr ?",
+      "deleteTitle": "Supprimer le modèle",
+      "filters": {
+        "all": "Tous",
+        "multiLanguage": "Multilingue",
+        "translation": "Traduction",
+        "allLanguages": "Toutes les langues"
+      },
+      "noModelsMatch": "Aucun modèle ne correspond à ce filtre.",
+      "processingModels": {
+        "title": "Processing Models",
+        "description": "Save LLM models for use in post-processing actions.",
+        "noModels": "No processing models saved yet. Add one to use in your actions.",
+        "addModel": "Add Processing Model",
+        "provider": "Provider",
+        "apiKey": "API Key",
+        "apiKeyPlaceholder": "Enter API key",
+        "model": "Model",
+        "modelPlaceholder": "Select or type a model",
+        "save": "Save",
+        "cancel": "Cancel",
+        "fetchModels": "Fetch models",
+        "alreadySaved": "This model is already saved."
+      },
+      "languageModels": {
+        "description": "Ajoutez les modèles de langage à utiliser pour le post-traitement. Renseignez la clé API du fournisseur une fois, puis choisissez un modèle.",
+        "addModel": "Ajouter un modèle",
+        "provider": "Fournisseur",
+        "apiKey": "Clé API",
+        "apiKeyPlaceholder": "Saisir la clé API",
+        "model": "Modèle",
+        "modelPlaceholder": "Rechercher ou saisir un modèle",
+        "useModel": "Utiliser « {{model}} »",
+        "fetchModels": "Actualiser les modèles",
+        "label": "Libellé (optionnel)",
+        "labelPlaceholder": "Nom d’affichage de ce modèle"
       }
     },
     "sound": {
@@ -522,7 +537,6 @@
         "selectToEdit": "Sélectionnez un prompt ci-dessus pour voir et modifier ses détails.",
         "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement."
       },
-      "description": "Créez des actions de post-traitement qui réécrivent votre transcription avec un modèle d’IA. Déclenchez-les via un raccourci global ou en appuyant sur une touche numérique pendant l’enregistrement.",
       "actions": {
         "newAction": "Nouvelle action",
         "newTitle": "Nouvelle action",
@@ -548,6 +562,7 @@
         "emptyTitle": "Aucune action",
         "shortcut": "Raccourci global"
       },
+      "description": "Créez des actions de post-traitement qui réécrivent votre transcription avec un modèle d’IA. Déclenchez-les via un raccourci global ou en appuyant sur une touche numérique pendant l’enregistrement.",
       "defaultShortcut": {
         "title": "Raccourci par défaut",
         "toggleLabel": "Activer le raccourci de post-traitement par défaut",
@@ -684,16 +699,6 @@
           "details": "WhisperSM utilise Whisper.cpp pour un traitement rapide et local de la parole en texte. Merci au travail incroyable de Georgi Gerganov et des contributeurs."
         }
       }
-    },
-    "longAudioModel": {
-      "title": "Long Audio Model",
-      "description": "Automatically switch to a different model when recording duration exceeds the threshold.",
-      "modelLabel": "Model for long recordings",
-      "modelDescription": "Select a model to use for recordings longer than the threshold.",
-      "thresholdLabel": "Duration threshold (seconds)",
-      "thresholdDescription": "Switch to the long audio model when recording exceeds this duration.",
-      "disabled": "Disabled",
-      "seconds": "{{value}}s"
     }
   },
   "footer": {

@@ -18,6 +18,7 @@ pub mod portable;
 mod settings;
 mod shortcut;
 mod signal_handle;
+mod storage;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
@@ -224,6 +225,24 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             }
             "copy_last_transcript" => {
                 tray::copy_last_transcript(app);
+            }
+            "toggle_recording" => {
+                signal_handle::send_transcription_input(app, "transcribe", "tray");
+            }
+            "history" => {
+                show_main_window(app);
+                let _ = app.emit("navigate-to-section", "history");
+            }
+            "open_recordings" => {
+                if let Err(e) = commands::open_recordings_folder(app.clone()) {
+                    log::error!("Failed to open recordings folder: {}", e);
+                }
+            }
+            id if id.starts_with("mode_select:") => {
+                let mode_id = id.strip_prefix("mode_select:").unwrap_or_default();
+                if let Err(e) = commands::modes::set_active_mode_internal(app, mode_id) {
+                    log::error!("Failed to change mode from tray: {}", e);
+                }
             }
             "unload_model" => {
                 let transcription_manager = app.state::<Arc<TranscriptionManager>>();
@@ -566,6 +585,9 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
+            // Create ~/Documents/WhisperSM and move data into it before the
+            // settings store is opened.
+            storage::init(app.handle());
             specta_builder.mount_events(app);
 
             // Create main window programmatically so we can set data_directory

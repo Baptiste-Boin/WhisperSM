@@ -1,12 +1,17 @@
 {
   "tray": {
-    "settings": "...الإعدادات",
     "checkUpdates": "...التحقق من وجود تحديثات",
     "copyLastTranscript": "نسخ آخر نص تم تفريغه",
     "unloadModel": "تفريغ النموذج",
     "model": "النموذج",
     "quit": "إنهاء",
-    "cancel": "إلغاء"
+    "cancel": "إلغاء",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "mode": "Mode",
+    "openApp": "Open WhisperSM",
+    "history": "History…",
+    "openRecordings": "Open Recordings Folder"
   },
   "sidebar": {
     "general": "عام",

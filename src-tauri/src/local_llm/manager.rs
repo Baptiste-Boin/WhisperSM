@@ -98,9 +98,7 @@ fn now_secs() -> u64 {
 
 impl LocalLlmManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
-        let models_dir = crate::portable::app_data_dir(app_handle)
-            .map_err(|e| anyhow!("Failed to get app data dir: {}", e))?
-            .join("llm");
+        let models_dir = crate::storage::llm_dir(app_handle);
         if !models_dir.exists() {
             fs::create_dir_all(&models_dir)?;
         }
