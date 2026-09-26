@@ -93,6 +93,46 @@ async changeOverlayPositionSetting(position: string) : Promise<Result<null, stri
     else return { status: "error", error: e  as any };
 }
 },
+async changeThemeSetting(theme: ThemePreference) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_theme_setting", { theme }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeOverlayStyleSetting(style: OverlayStyle) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_overlay_style_setting", { style }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeOverlayAlwaysShowSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_overlay_always_show_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeSilenceRemovalSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_silence_removal_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateVocabularyReplacements(replacements: VocabularyReplacement[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_vocabulary_replacements", { replacements }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeDebugModeSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_debug_mode_setting", { enabled }) };
@@ -280,17 +320,17 @@ async deleteLlmModel(id: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async addPostProcessAction(name: string, prompt: string, llmModelId: string | null, icon: string, triggerKey: number | null) : Promise<Result<PostProcessAction, string>> {
+async addPostProcessAction(name: string, prompt: string, llmModelId: string | null, icon: string, triggerKey: number | null, speechModelId: string | null) : Promise<Result<PostProcessAction, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("add_post_process_action", { name, prompt, llmModelId, icon, triggerKey }) };
+    return { status: "ok", data: await TAURI_INVOKE("add_post_process_action", { name, prompt, llmModelId, icon, triggerKey, speechModelId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
-async updatePostProcessAction(id: string, name: string, prompt: string, llmModelId: string | null, icon: string, triggerKey: number | null) : Promise<Result<null, string>> {
+async updatePostProcessAction(id: string, name: string, prompt: string, llmModelId: string | null, icon: string, triggerKey: number | null, speechModelId: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("update_post_process_action", { id, name, prompt, llmModelId, icon, triggerKey }) };
+    return { status: "ok", data: await TAURI_INVOKE("update_post_process_action", { id, name, prompt, llmModelId, icon, triggerKey, speechModelId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -804,9 +844,9 @@ async unloadModelManually() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async getHistoryEntries(cursor: number | null, limit: number | null) : Promise<Result<PaginatedHistory, string>> {
+async getHistoryEntries(cursor: number | null, limit: number | null, query: string | null) : Promise<Result<PaginatedHistory, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_history_entries", { cursor, limit }) };
+    return { status: "ok", data: await TAURI_INVOKE("get_history_entries", { cursor, limit, query }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -872,9 +912,13 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
     else return { status: "error", error: e  as any };
 }
 },
-async getHistoryStats() : Promise<Result<HistoryStats, string>> {
+/**
+ * Usage statistics. `since` is a unix timestamp (seconds); `None` means
+ * all time.
+ */
+async getHistoryStats(since: number | null) : Promise<Result<HistoryStats, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_history_stats") };
+    return { status: "ok", data: await TAURI_INVOKE("get_history_stats", { since }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -940,9 +984,27 @@ async testLocalLlm(modelId: string, prompt: string, text: string) : Promise<Resu
     else return { status: "error", error: e  as any };
 }
 },
+async setActiveMode(id: string) : Promise<Result<PostProcessAction, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_active_mode", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async cycleActiveMode() : Promise<Result<PostProcessAction, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cycle_active_mode") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
- * Stub implementation for non-macOS platforms
- * Always returns false since laptop detection is macOS-specific
+ * Checks if the Mac is a laptop by detecting battery presence
+ * 
+ * This uses pmset to check for battery information.
+ * Returns true if a battery is detected (laptop), false otherwise (desktop)
  */
 async isLaptop() : Promise<Result<boolean, string>> {
     try {
@@ -969,20 +1031,72 @@ historyUpdatePayload: "history-update-payload"
 
 /** user-defined types **/
 
-export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; llm_models?: LLMModel[]; post_process_actions?: PostProcessAction[]; post_process_actions_initialized?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; typing_tool?: TypingTool; external_script_path: string | null; custom_filler_words?: string[] | null; whisper_accelerator?: WhisperAcceleratorSetting; ort_accelerator?: OrtAcceleratorSetting; whisper_gpu_device?: number; extra_recording_buffer_ms?: number; long_audio_model?: string | null; long_audio_threshold_seconds?: number }
+export type AppSettings = { bindings: Partial<{ [key in string]: ShortcutBinding }>; push_to_talk: boolean; audio_feedback: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; selected_model?: string; always_on_microphone?: boolean; selected_microphone?: string | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; llm_models?: LLMModel[]; post_process_actions?: PostProcessAction[]; post_process_actions_initialized?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; typing_tool?: TypingTool; external_script_path: string | null; custom_filler_words?: string[] | null; whisper_accelerator?: WhisperAcceleratorSetting; ort_accelerator?: OrtAcceleratorSetting; whisper_gpu_device?: number; extra_recording_buffer_ms?: number; long_audio_model?: string | null; long_audio_threshold_seconds?: number; 
+/**
+ * Interface theme (auto follows the system).
+ */
+theme?: ThemePreference; 
+/**
+ * Look of the floating recording window.
+ */
+overlay_style?: OverlayStyle; 
+/**
+ * Keep the recording window visible (in an idle state) between recordings.
+ */
+overlay_always_show?: boolean; 
+/**
+ * Mode applied by the main recording shortcut.
+ */
+active_mode_id?: string | null; 
+/**
+ * Vocabulary replacements applied to every transcription.
+ */
+vocabulary_replacements?: VocabularyReplacement[]; 
+/**
+ * Drop silent audio (voice activity detection) before transcribing.
+ */
+silence_removal?: boolean }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { whisper: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
 export type CustomSounds = { start: boolean; stop: boolean }
-export type EngineType = "Whisper" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary"
+export type EngineType = "Whisper" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary" | 
+/**
+ * Audio is sent to a cloud provider's transcription API.
+ */
+"Cloud"
 export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number }
-export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean }
+export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; 
+/**
+ * Application that was frontmost when the dictation started.
+ */
+app_name: string | null; 
+/**
+ * Length of the recorded (speech-only) audio, in milliseconds.
+ */
+duration_ms: number | null }
 /**
  * Aggregate numbers shown on the Home screen.
  */
-export type HistoryStats = { total_entries: number; total_words: number; entries_today: number; words_today: number; post_processed_entries: number; last_timestamp: number | null }
+export type HistoryStats = { total_entries: number; total_words: number; entries_today: number; words_today: number; post_processed_entries: number; last_timestamp: number | null; 
+/**
+ * Total recorded speech, in milliseconds (entries with a known duration).
+ */
+total_duration_ms: number; 
+/**
+ * Number of distinct applications text was dictated into.
+ */
+apps_used: number; 
+/**
+ * Average dictation speed in words per minute (0 when unknown).
+ */
+average_wpm: number; 
+/**
+ * Estimated time saved compared to typing at 40 WPM, in milliseconds.
+ */
+time_saved_ms: number }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -1003,7 +1117,11 @@ export type LLMPrompt = { id: string; name: string; prompt: string }
  * Model architecture, used to pick the right candle implementation and
  * chat template.
  */
-export type LocalLlmArch = "qwen_2" | "llama"
+export type LocalLlmArch = "qwen_2" | "llama" | 
+/**
+ * Mistral 7B family: Llama weights layout with the `[INST]` chat template.
+ */
+"mistral"
 export type LocalLlmModelInfo = { id: string; name: string; description: string; 
 /**
  * Model family shown as a badge (e.g. "Qwen 2.5").
@@ -1042,27 +1160,98 @@ multilingual: boolean; is_recommended: boolean; is_downloaded: boolean; is_downl
  */
 export type LocalLlmStatus = { loaded_model_id: string | null; is_loading: boolean; is_generating: boolean; device: string }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
-export type ModelInfo = { id: string; name: string; description: string; filename: string; url: string | null; sha256: string | null; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean }
+export type ModelInfo = { id: string; name: string; description: string; filename: string; url: string | null; sha256: string | null; size_mb: number; 
+/**
+ * For local models: files are on disk. For cloud models: the
+ * provider has an API key, so the model can be used.
+ */
+is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; 
+/**
+ * Organisation behind the model, used for the logo in the models library
+ * (e.g. "openai", "nvidia", "deepgram").
+ */
+vendor?: string; 
+/**
+ * True when transcription happens on a provider's servers.
+ */
+is_cloud?: boolean; 
+/**
+ * Cloud models: id of the provider whose API key is used.
+ */
+provider_id?: string | null; 
+/**
+ * Cloud models: model identifier sent to the provider.
+ */
+cloud_model?: string | null; 
+/**
+ * Small tag shown next to the name ("en", "new").
+ */
+badge?: string | null }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
 export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_15"
 export type OrtAcceleratorSetting = "auto" | "cpu" | "cuda" | "directml" | "rocm"
 export type OverlayPosition = "none" | "top" | "bottom"
+/**
+ * Look of the floating recording window.
+ */
+export type OverlayStyle = 
+/**
+ * Timer, waveform and pause/cancel controls.
+ */
+"classic" | 
+/**
+ * Compact pill with the waveform only.
+ */
+"mini"
 export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"
 /**
- * A post-processing action: a prompt applied to the transcription through a
- * saved language model. Can be triggered by a dedicated global shortcut
- * (stored in `bindings` under `ppa_<id>`) or by pressing `trigger_key`
- * while a recording is in progress.
+ * A mode (post-processing action): a prompt applied to the transcription
+ * through a saved language model, optionally with its own speech model.
+ * A mode with an empty prompt is a plain "voice to text" mode.
+ * 
+ * Can be triggered by a dedicated global shortcut (stored in `bindings`
+ * under `ppa_<id>`), by pressing `trigger_key` while a recording is in
+ * progress, or by being the active mode (see `AppSettings::active_mode_id`).
  */
-export type PostProcessAction = { id: string; name: string; prompt: string; llm_model_id?: string | null; icon?: string; trigger_key?: number | null }
-export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
+export type PostProcessAction = { id: string; name: string; prompt: string; llm_model_id?: string | null; icon?: string; trigger_key?: number | null; 
+/**
+ * Speech model used when this mode is active. `None` means the app-wide
+ * selected model.
+ */
+speech_model_id?: string | null }
+export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
+/**
+ * Offers chat/language models usable by modes.
+ */
+supports_language?: boolean; 
+/**
+ * Offers a speech-to-text endpoint usable as a cloud voice model.
+ */
+supports_speech?: boolean; 
+/**
+ * Where the user can create an API key.
+ */
+api_key_url?: string | null; 
+/**
+ * Short note about the provider's free tier, shown in the API key dialog.
+ */
+free_tier?: string | null }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
 export type SoundTheme = "marimba" | "pop" | "custom"
+/**
+ * Interface theme preference.
+ */
+export type ThemePreference = "auto" | "light" | "dark"
 export type TypingTool = "auto" | "wtype" | "kwtype" | "dotool" | "ydotool" | "xdotool"
+/**
+ * A vocabulary replacement: whenever `from` is transcribed it is rewritten
+ * as `to` (case-insensitive, whole words).
+ */
+export type VocabularyReplacement = { from: string; to: string }
 export type WhisperAcceleratorSetting = "auto" | "cpu" | "gpu"
 export type WindowsMicrophonePermissionStatus = { supported: boolean; overall_access: PermissionAccess; device_access: PermissionAccess; app_access: PermissionAccess; desktop_app_access: PermissionAccess }
 

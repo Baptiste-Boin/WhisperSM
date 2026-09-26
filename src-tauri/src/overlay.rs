@@ -428,7 +428,22 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
     }
 }
 
+/// Payload of the `show-overlay` event consumed by the overlay webview.
+#[derive(Clone, serde::Serialize)]
+struct OverlayShowPayload {
+    /// "recording", "transcribing", "processing", "idle" or "mode".
+    state: String,
+    /// "classic" or "mini" (see `OverlayStyle`).
+    style: String,
+    /// Name of the mode to display when `state == "mode"`.
+    mode_name: Option<String>,
+}
+
 fn show_overlay_state(app_handle: &AppHandle, state: &str) {
+    show_overlay_state_with(app_handle, state, None);
+}
+
+fn show_overlay_state_with(app_handle: &AppHandle, state: &str, mode_name: Option<&str>) {
     // Check if overlay should be shown based on position setting
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
@@ -444,7 +459,18 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
         #[cfg(target_os = "windows")]
         force_overlay_topmost(&overlay_window);
 
-        let _ = overlay_window.emit("show-overlay", state);
+        let style = match settings.overlay_style {
+            settings::OverlayStyle::Classic => "classic",
+            settings::OverlayStyle::Mini => "mini",
+        };
+        let _ = overlay_window.emit(
+            "show-overlay",
+            OverlayShowPayload {
+                state: state.to_string(),
+                style: style.to_string(),
+                mode_name: mode_name.map(|s| s.to_string()),
+            },
+        );
     }
 }
 
@@ -463,6 +489,54 @@ pub fn show_processing_overlay(app_handle: &AppHandle) {
     show_overlay_state(app_handle, "processing");
 }
 
+/// Shows the overlay in its resting state (used by "Always show").
+pub fn show_idle_overlay(app_handle: &AppHandle) {
+    show_overlay_state(app_handle, "idle");
+}
+
+/// Briefly display the name of the newly selected mode, then return to the
+/// previous state (hidden, or idle when "Always show" is on). Does nothing
+/// while a recording is in progress so the recording UI is not disturbed.
+pub fn flash_mode_overlay(app_handle: &AppHandle, mode_name: &str) {
+    let is_recording = app_handle
+        .try_state::<std::sync::Arc<crate::managers::audio::AudioRecordingManager>>()
+        .map(|manager| manager.is_recording())
+        .unwrap_or(false);
+    if is_recording {
+        return;
+    }
+    show_overlay_state_with(app_handle, "mode", Some(mode_name));
+    let app = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(1400));
+        let still_idle = app
+            .try_state::<std::sync::Arc<crate::managers::audio::AudioRecordingManager>>()
+            .map(|manager| !manager.is_recording())
+            .unwrap_or(true);
+        if still_idle {
+            hide_recording_overlay(&app);
+        }
+    });
+}
+
+/// Show or hide the resting overlay according to the "Always show" setting.
+pub fn apply_always_show(app_handle: &AppHandle) {
+    let settings = settings::get_settings(app_handle);
+    let is_recording = app_handle
+        .try_state::<std::sync::Arc<crate::managers::audio::AudioRecordingManager>>()
+        .map(|manager| manager.is_recording())
+        .unwrap_or(false);
+    if is_recording {
+        return;
+    }
+    if settings.overlay_always_show && settings.overlay_position != OverlayPosition::None {
+        show_idle_overlay(app_handle);
+    } else if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.emit("hide-overlay", ());
+        let _ = overlay_window.hide();
+    }
+}
+
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
@@ -478,7 +552,8 @@ pub fn update_overlay_position(app_handle: &AppHandle) {
     }
 }
 
-/// Hides the recording overlay window with fade-out animation
+/// Hides the recording overlay window with fade-out animation. When "Always
+/// show" is enabled the window stays visible in its idle state instead.
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
     // Always hide the overlay regardless of settings - if setting was changed while recording,
     // we still want to hide it properly
@@ -487,11 +562,31 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
         let _ = overlay_window.emit("hide-overlay", ());
         // Hide the window after a short delay to allow animation to complete
         let window_clone = overlay_window.clone();
+        let app = app_handle.clone();
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(300));
-            let _ = window_clone.hide();
+            let settings = settings::get_settings(&app);
+            if settings.overlay_always_show && settings.overlay_position != OverlayPosition::None {
+                show_idle_overlay(&app);
+            } else {
+                let _ = window_clone.hide();
+            }
         });
     }
+}
+
+/// Show the resting overlay shortly after startup when "Always show" is on
+/// (gives the overlay webview time to load).
+pub fn show_idle_overlay_after_startup(app_handle: &AppHandle) {
+    let settings = settings::get_settings(app_handle);
+    if !settings.overlay_always_show {
+        return;
+    }
+    let app = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        apply_always_show(&app);
+    });
 }
 
 pub fn emit_levels(app_handle: &AppHandle, levels: &Vec<f32>) {

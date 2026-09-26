@@ -53,6 +53,8 @@ impl TranscriptionManager {
 
     pub fn initiate_model_load(&self) {}
 
+    pub fn initiate_model_load_with(&self, _model_override: Option<String>) {}
+
     pub fn get_current_model(&self) -> Option<String> {
         None
     }

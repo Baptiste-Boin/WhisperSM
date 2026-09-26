@@ -117,7 +117,7 @@ impl LocalLlmEngine {
                     .context("Failed to build Qwen2 model")?;
                 (ModelKind::Qwen2(weights), ctx)
             }
-            LocalLlmArch::Llama => {
+            LocalLlmArch::Llama | LocalLlmArch::Mistral => {
                 let ctx = metadata_context("llama.context_length").unwrap_or(8192);
                 let weights = quantized_llama::ModelWeights::from_gguf(content, &mut file, &device)
                     .context("Failed to build Llama model")?;
@@ -128,6 +128,7 @@ impl LocalLlmEngine {
         let eos_names: &[&str] = match arch {
             LocalLlmArch::Qwen2 => &["<|im_end|>", "<|endoftext|>"],
             LocalLlmArch::Llama => &["<|eot_id|>", "<|end_of_text|>", "<|eom_id|>"],
+            LocalLlmArch::Mistral => &["</s>"],
         };
         let eos_tokens: Vec<u32> = eos_names
             .iter()
@@ -165,6 +166,9 @@ impl LocalLlmEngine {
             LocalLlmArch::Llama => format!(
                 "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
             ),
+            // Mistral Instruct has no system role: the instructions are
+            // prepended to the user turn.
+            LocalLlmArch::Mistral => format!("<s>[INST] {system}\n\n{user} [/INST]"),
         }
     }
 
@@ -344,6 +348,7 @@ mod tests {
                 LocalLlmArch::Llama => format!(
                     "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
                 ),
+                LocalLlmArch::Mistral => format!("<s>[INST] {system}\n\n{user} [/INST]"),
             }
         }
         let qwen = format(LocalLlmArch::Qwen2, "sys", "hello");
@@ -352,5 +357,8 @@ mod tests {
         let llama = format(LocalLlmArch::Llama, "sys", "hello");
         assert!(llama.starts_with("<|begin_of_text|>"));
         assert!(llama.ends_with("<|start_header_id|>assistant<|end_header_id|>\n\n"));
+        let mistral = format(LocalLlmArch::Mistral, "sys", "hello");
+        assert!(mistral.starts_with("<s>[INST] sys"));
+        assert!(mistral.ends_with("hello [/INST]"));
     }
 }

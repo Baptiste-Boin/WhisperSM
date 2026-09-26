@@ -56,19 +56,23 @@ pub async fn get_history_entries(
     history_manager: State<'_, Arc<HistoryManager>>,
     cursor: Option<i64>,
     limit: Option<usize>,
+    query: Option<String>,
 ) -> Result<PaginatedHistory, String> {
     history_manager
-        .get_history_entries(cursor, limit)
+        .get_history_entries(cursor, limit, query)
         .await
         .map_err(|e| e.to_string())
 }
 
+/// Usage statistics. `since` is a unix timestamp (seconds); `None` means
+/// all time.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_history_stats(
     history_manager: State<'_, Arc<HistoryManager>>,
+    since: Option<i64>,
 ) -> Result<HistoryStats, String> {
-    history_manager.get_stats().map_err(|e| e.to_string())
+    history_manager.get_stats(since).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

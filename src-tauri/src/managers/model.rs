@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 use tar::Archive;
 use tauri::{AppHandle, Emitter, Manager};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
 pub enum EngineType {
     Whisper,
     Parakeet,
@@ -26,6 +26,8 @@ pub enum EngineType {
     SenseVoice,
     GigaAM,
     Canary,
+    /// Audio is sent to a cloud provider's transcription API.
+    Cloud,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -37,6 +39,8 @@ pub struct ModelInfo {
     pub url: Option<String>,
     pub sha256: Option<String>,
     pub size_mb: u64,
+    /// For local models: files are on disk. For cloud models: the
+    /// provider has an API key, so the model can be used.
     pub is_downloaded: bool,
     pub is_downloading: bool,
     pub partial_size: u64,
@@ -49,6 +53,158 @@ pub struct ModelInfo {
     pub supported_languages: Vec<String>, // Languages this model can transcribe
     pub supports_language_selection: bool, // Whether the user can explicitly pick a language
     pub is_custom: bool,            // Whether this is a user-provided custom model
+    /// Organisation behind the model, used for the logo in the models library
+    /// (e.g. "openai", "nvidia", "deepgram").
+    #[serde(default)]
+    pub vendor: String,
+    /// True when transcription happens on a provider's servers.
+    #[serde(default)]
+    pub is_cloud: bool,
+    /// Cloud models: id of the provider whose API key is used.
+    #[serde(default)]
+    pub provider_id: Option<String>,
+    /// Cloud models: model identifier sent to the provider.
+    #[serde(default)]
+    pub cloud_model: Option<String>,
+    /// Small tag shown next to the name ("en", "new").
+    #[serde(default)]
+    pub badge: Option<String>,
+}
+
+/// A downloadable whisper.cpp GGML model.
+#[allow(clippy::too_many_arguments)]
+fn whisper_model(
+    id: &str,
+    name: &str,
+    description: &str,
+    filename: &str,
+    url: &str,
+    sha256: &str,
+    size_mb: u64,
+    accuracy_score: f32,
+    speed_score: f32,
+    supports_translation: bool,
+    is_recommended: bool,
+    supported_languages: Vec<String>,
+    badge: Option<&str>,
+) -> ModelInfo {
+    ModelInfo {
+        id: id.to_string(),
+        name: name.to_string(),
+        description: description.to_string(),
+        filename: filename.to_string(),
+        url: Some(url.to_string()),
+        sha256: Some(sha256.to_string()),
+        size_mb,
+        is_downloaded: false,
+        is_downloading: false,
+        partial_size: 0,
+        is_directory: false,
+        engine_type: EngineType::Whisper,
+        accuracy_score,
+        speed_score,
+        supports_translation,
+        is_recommended,
+        supported_languages,
+        supports_language_selection: true,
+        is_custom: false,
+        vendor: "openai".to_string(),
+        is_cloud: false,
+        provider_id: None,
+        cloud_model: None,
+        badge: badge.map(|b| b.to_string()),
+    }
+}
+
+/// A downloadable directory-based ONNX model (tar.gz archive).
+#[allow(clippy::too_many_arguments)]
+fn onnx_model(
+    id: &str,
+    name: &str,
+    description: &str,
+    filename: &str,
+    url: &str,
+    sha256: &str,
+    size_mb: u64,
+    engine_type: EngineType,
+    accuracy_score: f32,
+    speed_score: f32,
+    supports_translation: bool,
+    is_recommended: bool,
+    supported_languages: Vec<String>,
+    supports_language_selection: bool,
+    vendor: &str,
+    badge: Option<&str>,
+) -> ModelInfo {
+    ModelInfo {
+        id: id.to_string(),
+        name: name.to_string(),
+        description: description.to_string(),
+        filename: filename.to_string(),
+        url: Some(url.to_string()),
+        sha256: Some(sha256.to_string()),
+        size_mb,
+        is_downloaded: false,
+        is_downloading: false,
+        partial_size: 0,
+        is_directory: true,
+        engine_type,
+        accuracy_score,
+        speed_score,
+        supports_translation,
+        is_recommended,
+        supported_languages,
+        supports_language_selection,
+        is_custom: false,
+        vendor: vendor.to_string(),
+        is_cloud: false,
+        provider_id: None,
+        cloud_model: None,
+        badge: badge.map(|b| b.to_string()),
+    }
+}
+
+/// A voice model served by a cloud provider (needs an API key).
+#[allow(clippy::too_many_arguments)]
+fn cloud_model(
+    id: &str,
+    name: &str,
+    description: &str,
+    provider_id: &str,
+    cloud_model: &str,
+    accuracy_score: f32,
+    speed_score: f32,
+    supports_translation: bool,
+    supported_languages: Vec<String>,
+    vendor: &str,
+    badge: Option<&str>,
+) -> ModelInfo {
+    ModelInfo {
+        id: id.to_string(),
+        name: name.to_string(),
+        description: description.to_string(),
+        filename: String::new(),
+        url: None,
+        sha256: None,
+        size_mb: 0,
+        is_downloaded: false,
+        is_downloading: false,
+        partial_size: 0,
+        is_directory: false,
+        engine_type: EngineType::Cloud,
+        accuracy_score,
+        speed_score,
+        supports_translation,
+        is_recommended: false,
+        supported_languages,
+        supports_language_selection: true,
+        is_custom: false,
+        vendor: vendor.to_string(),
+        is_cloud: true,
+        provider_id: Some(provider_id.to_string()),
+        cloud_model: Some(cloud_model.to_string()),
+        badge: badge.map(|b| b.to_string()),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -120,176 +276,10 @@ impl ModelManager {
         .into_iter()
         .map(String::from)
         .collect();
+        let english: Vec<String> = vec!["en".to_string()];
 
-        // TODO this should be read from a JSON file or something..
-        available_models.insert(
-            "small".to_string(),
-            ModelInfo {
-                id: "small".to_string(),
-                name: "Whisper Small".to_string(),
-                description: "Fast and fairly accurate.".to_string(),
-                filename: "ggml-small.bin".to_string(),
-                url: Some("https://blob.handy.computer/ggml-small.bin".to_string()),
-                sha256: Some(
-                    "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b".to_string(),
-                ),
-                size_mb: 487,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: false,
-                engine_type: EngineType::Whisper,
-                accuracy_score: 0.60,
-                speed_score: 0.85,
-                supports_translation: true,
-                is_recommended: false,
-                supported_languages: whisper_languages.clone(),
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
-
-        // Add downloadable models
-        available_models.insert(
-            "medium".to_string(),
-            ModelInfo {
-                id: "medium".to_string(),
-                name: "Whisper Medium".to_string(),
-                description: "Good accuracy, medium speed".to_string(),
-                filename: "whisper-medium-q4_1.bin".to_string(),
-                url: Some("https://blob.handy.computer/whisper-medium-q4_1.bin".to_string()),
-                sha256: Some(
-                    "79283fc1f9fe12ca3248543fbd54b73292164d8df5a16e095e2bceeaaabddf57".to_string(),
-                ),
-                size_mb: 492, // Approximate size
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: false,
-                engine_type: EngineType::Whisper,
-                accuracy_score: 0.75,
-                speed_score: 0.60,
-                supports_translation: true,
-                is_recommended: false,
-                supported_languages: whisper_languages.clone(),
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
-
-        available_models.insert(
-            "turbo".to_string(),
-            ModelInfo {
-                id: "turbo".to_string(),
-                name: "Whisper Turbo".to_string(),
-                description: "Balanced accuracy and speed.".to_string(),
-                filename: "ggml-large-v3-turbo.bin".to_string(),
-                url: Some("https://blob.handy.computer/ggml-large-v3-turbo.bin".to_string()),
-                sha256: Some(
-                    "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69".to_string(),
-                ),
-                size_mb: 1600, // Approximate size
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: false,
-                engine_type: EngineType::Whisper,
-                accuracy_score: 0.80,
-                speed_score: 0.40,
-                supports_translation: false, // Turbo doesn't support translation
-                is_recommended: true,
-                supported_languages: whisper_languages.clone(),
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
-
-        available_models.insert(
-            "large".to_string(),
-            ModelInfo {
-                id: "large".to_string(),
-                name: "Whisper Large".to_string(),
-                description: "Good accuracy, but slow.".to_string(),
-                filename: "ggml-large-v3-q5_0.bin".to_string(),
-                url: Some("https://blob.handy.computer/ggml-large-v3-q5_0.bin".to_string()),
-                sha256: Some(
-                    "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1".to_string(),
-                ),
-                size_mb: 1100, // Approximate size
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: false,
-                engine_type: EngineType::Whisper,
-                accuracy_score: 0.85,
-                speed_score: 0.30,
-                supports_translation: true,
-                is_recommended: false,
-                supported_languages: whisper_languages.clone(),
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
-
-        available_models.insert(
-            "breeze-asr".to_string(),
-            ModelInfo {
-                id: "breeze-asr".to_string(),
-                name: "Breeze ASR".to_string(),
-                description: "Optimized for Taiwanese Mandarin. Code-switching support."
-                    .to_string(),
-                filename: "breeze-asr-q5_k.bin".to_string(),
-                url: Some("https://blob.handy.computer/breeze-asr-q5_k.bin".to_string()),
-                sha256: Some(
-                    "8efbf0ce8a3f50fe332b7617da787fb81354b358c288b008d3bdef8359df64c6".to_string(),
-                ),
-                size_mb: 1080,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: false,
-                engine_type: EngineType::Whisper,
-                accuracy_score: 0.85,
-                speed_score: 0.35,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: whisper_languages,
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
-
-        // Add NVIDIA Parakeet models (directory-based)
-        available_models.insert(
-            "parakeet-tdt-0.6b-v2".to_string(),
-            ModelInfo {
-                id: "parakeet-tdt-0.6b-v2".to_string(),
-                name: "Parakeet V2".to_string(),
-                description: "English only. The best model for English speakers.".to_string(),
-                filename: "parakeet-tdt-0.6b-v2-int8".to_string(), // Directory name
-                url: Some("https://blob.handy.computer/parakeet-v2-int8.tar.gz".to_string()),
-                sha256: Some(
-                    "ac9b9429984dd565b25097337a887bb7f0f8ac393573661c651f0e7d31563991".to_string(),
-                ),
-                size_mb: 473, // Approximate size for int8 quantized model
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::Parakeet,
-                accuracy_score: 0.85,
-                speed_score: 0.85,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: vec!["en".to_string()],
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
-
-        // Parakeet V3 supported languages (25 EU languages + Russian/Ukrainian):
-        // bg, hr, cs, da, nl, en, et, fi, fr, de, el, hu, it, lv, lt, mt, pl, pt, ro, sk, sl, es, sv, ru, uk
-        let parakeet_v3_languages: Vec<String> = vec![
+        // Parakeet V3 / Canary 1B supported languages (25 EU languages + Russian/Ukrainian)
+        let european_languages: Vec<String> = vec![
             "bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv",
             "lt", "mt", "pl", "pt", "ro", "sk", "sl", "es", "sv", "ru", "uk",
         ]
@@ -297,282 +287,478 @@ impl ModelManager {
         .map(String::from)
         .collect();
 
-        available_models.insert(
-            "parakeet-tdt-0.6b-v3".to_string(),
-            ModelInfo {
-                id: "parakeet-tdt-0.6b-v3".to_string(),
-                name: "Parakeet V3".to_string(),
-                description: "Fast and accurate. Supports 25 European languages.".to_string(),
-                filename: "parakeet-tdt-0.6b-v3-int8".to_string(), // Directory name
-                url: Some("https://blob.handy.computer/parakeet-v3-int8.tar.gz".to_string()),
-                sha256: Some(
-                    "43d37191602727524a7d8c6da0eef11c4ba24320f5b4730f1a2497befc2efa77".to_string(),
-                ),
-                size_mb: 478, // Approximate size for int8 quantized model
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::Parakeet,
-                accuracy_score: 0.80,
-                speed_score: 0.85,
-                supports_translation: false,
-                is_recommended: true,
-                supported_languages: parakeet_v3_languages,
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
+        let mut add = |model: ModelInfo| {
+            available_models.insert(model.id.clone(), model);
+        };
 
-        available_models.insert(
-            "moonshine-base".to_string(),
-            ModelInfo {
-                id: "moonshine-base".to_string(),
-                name: "Moonshine Base".to_string(),
-                description: "Very fast, English only. Handles accents well.".to_string(),
-                filename: "moonshine-base".to_string(),
-                url: Some("https://blob.handy.computer/moonshine-base.tar.gz".to_string()),
-                sha256: Some(
-                    "04bf6ab012cfceebd4ac7cf88c1b31d027bbdd3cd704649b692e2e935236b7e8".to_string(),
-                ),
-                size_mb: 58,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::Moonshine,
-                accuracy_score: 0.70,
-                speed_score: 0.90,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: vec!["en".to_string()],
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
+        /* ---------- Whisper (whisper.cpp GGML) ---------------------------- */
 
-        available_models.insert(
-            "moonshine-tiny-streaming-en".to_string(),
-            ModelInfo {
-                id: "moonshine-tiny-streaming-en".to_string(),
-                name: "Moonshine V2 Tiny".to_string(),
-                description: "Ultra-fast, English only".to_string(),
-                filename: "moonshine-tiny-streaming-en".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/moonshine-tiny-streaming-en.tar.gz".to_string(),
-                ),
-                sha256: Some(
-                    "465addcfca9e86117415677dfdc98b21edc53537210333a3ecdb58509a80abaf".to_string(),
-                ),
-                size_mb: 31,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::MoonshineStreaming,
-                accuracy_score: 0.55,
-                speed_score: 0.95,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: vec!["en".to_string()],
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
+        add(whisper_model(
+            "tiny",
+            "Whisper Tiny",
+            "Smallest and fastest. Rough accuracy, fine for quick notes.",
+            "ggml-tiny.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+            "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+            75,
+            0.35,
+            0.98,
+            true,
+            false,
+            whisper_languages.clone(),
+            None,
+        ));
+        add(whisper_model(
+            "tiny.en",
+            "Whisper Tiny",
+            "Smallest and fastest, English only.",
+            "ggml-tiny.en.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
+            "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f",
+            75,
+            0.40,
+            0.98,
+            false,
+            false,
+            english.clone(),
+            Some("en"),
+        ));
+        add(whisper_model(
+            "base",
+            "Whisper Base",
+            "Very fast with decent accuracy.",
+            "ggml-base.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+            "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+            150,
+            0.45,
+            0.95,
+            true,
+            false,
+            whisper_languages.clone(),
+            None,
+        ));
+        add(whisper_model(
+            "base.en",
+            "Whisper Base",
+            "Very fast with decent accuracy, English only.",
+            "ggml-base.en.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin",
+            "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002",
+            150,
+            0.50,
+            0.95,
+            false,
+            false,
+            english.clone(),
+            Some("en"),
+        ));
+        add(whisper_model(
+            "small",
+            "Whisper Small",
+            "Fast and fairly accurate.",
+            "ggml-small.bin",
+            "https://blob.handy.computer/ggml-small.bin",
+            "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+            487,
+            0.60,
+            0.85,
+            true,
+            false,
+            whisper_languages.clone(),
+            None,
+        ));
+        add(whisper_model(
+            "small.en",
+            "Whisper Small",
+            "Fast and fairly accurate, English only.",
+            "ggml-small.en.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin",
+            "c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d",
+            500,
+            0.65,
+            0.85,
+            false,
+            false,
+            english.clone(),
+            Some("en"),
+        ));
+        add(whisper_model(
+            "medium",
+            "Whisper Medium",
+            "Good accuracy, medium speed",
+            "whisper-medium-q4_1.bin",
+            "https://blob.handy.computer/whisper-medium-q4_1.bin",
+            "79283fc1f9fe12ca3248543fbd54b73292164d8df5a16e095e2bceeaaabddf57",
+            492,
+            0.75,
+            0.60,
+            true,
+            false,
+            whisper_languages.clone(),
+            None,
+        ));
+        add(whisper_model(
+            "medium.en",
+            "Whisper Medium",
+            "Good accuracy, medium speed, English only.",
+            "ggml-medium.en-q5_0.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en-q5_0.bin",
+            "76733e26ad8fe1c7a5bf7531a9d41917b2adc0f20f2e4f5531688a8c6cd88eb0",
+            515,
+            0.78,
+            0.60,
+            false,
+            false,
+            english.clone(),
+            Some("en"),
+        ));
+        add(whisper_model(
+            "turbo",
+            "Whisper Large v3 Turbo",
+            "Balanced accuracy and speed.",
+            "ggml-large-v3-turbo.bin",
+            "https://blob.handy.computer/ggml-large-v3-turbo.bin",
+            "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
+            1600,
+            0.80,
+            0.40,
+            false, // Turbo doesn't support translation
+            true,
+            whisper_languages.clone(),
+            None,
+        ));
+        add(whisper_model(
+            "large",
+            "Whisper Large v3",
+            "Best Whisper accuracy, but slow.",
+            "ggml-large-v3-q5_0.bin",
+            "https://blob.handy.computer/ggml-large-v3-q5_0.bin",
+            "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1",
+            1100,
+            0.85,
+            0.30,
+            true,
+            false,
+            whisper_languages.clone(),
+            None,
+        ));
+        add(whisper_model(
+            "breeze-asr",
+            "Breeze ASR",
+            "Optimized for Taiwanese Mandarin. Code-switching support.",
+            "breeze-asr-q5_k.bin",
+            "https://blob.handy.computer/breeze-asr-q5_k.bin",
+            "8efbf0ce8a3f50fe332b7617da787fb81354b358c288b008d3bdef8359df64c6",
+            1080,
+            0.85,
+            0.35,
+            false,
+            false,
+            whisper_languages.clone(),
+            None,
+        ));
 
-        available_models.insert(
-            "moonshine-small-streaming-en".to_string(),
-            ModelInfo {
-                id: "moonshine-small-streaming-en".to_string(),
-                name: "Moonshine V2 Small".to_string(),
-                description: "Fast, English only. Good balance of speed and accuracy.".to_string(),
-                filename: "moonshine-small-streaming-en".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/moonshine-small-streaming-en.tar.gz".to_string(),
-                ),
-                sha256: Some(
-                    "dbb3e1c1832bd88a4ac712f7449a136cc2c9a18c5fe33a12ed1b7cb1cfe9cdd5".to_string(),
-                ),
-                size_mb: 100,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::MoonshineStreaming,
-                accuracy_score: 0.65,
-                speed_score: 0.90,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: vec!["en".to_string()],
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
+        /* ---------- ONNX models (Parakeet, Moonshine, SenseVoice, GigaAM, Canary) */
 
-        available_models.insert(
-            "moonshine-medium-streaming-en".to_string(),
-            ModelInfo {
-                id: "moonshine-medium-streaming-en".to_string(),
-                name: "Moonshine V2 Medium".to_string(),
-                description: "English only. High quality.".to_string(),
-                filename: "moonshine-medium-streaming-en".to_string(),
-                url: Some(
-                    "https://blob.handy.computer/moonshine-medium-streaming-en.tar.gz".to_string(),
-                ),
-                sha256: Some(
-                    "07a66f3bff1c77e75a2f637e5a263928a08baae3c29c4c053fc968a9a9373d13".to_string(),
-                ),
-                size_mb: 192,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::MoonshineStreaming,
-                accuracy_score: 0.75,
-                speed_score: 0.80,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: vec!["en".to_string()],
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
-
-        // SenseVoice supported languages
-        let sense_voice_languages: Vec<String> =
+        add(onnx_model(
+            "parakeet-tdt-0.6b-v2",
+            "Parakeet",
+            "English only. The best model for English speakers.",
+            "parakeet-tdt-0.6b-v2-int8",
+            "https://blob.handy.computer/parakeet-v2-int8.tar.gz",
+            "ac9b9429984dd565b25097337a887bb7f0f8ac393573661c651f0e7d31563991",
+            473,
+            EngineType::Parakeet,
+            0.85,
+            0.85,
+            false,
+            false,
+            english.clone(),
+            false,
+            "nvidia",
+            Some("en"),
+        ));
+        add(onnx_model(
+            "parakeet-tdt-0.6b-v3",
+            "Parakeet Multilanguage",
+            "Fast and accurate. Supports 25 European languages.",
+            "parakeet-tdt-0.6b-v3-int8",
+            "https://blob.handy.computer/parakeet-v3-int8.tar.gz",
+            "43d37191602727524a7d8c6da0eef11c4ba24320f5b4730f1a2497befc2efa77",
+            478,
+            EngineType::Parakeet,
+            0.80,
+            0.85,
+            false,
+            true,
+            european_languages.clone(),
+            false,
+            "nvidia",
+            None,
+        ));
+        add(onnx_model(
+            "moonshine-base",
+            "Moonshine Base",
+            "Very fast, English only. Handles accents well.",
+            "moonshine-base",
+            "https://blob.handy.computer/moonshine-base.tar.gz",
+            "04bf6ab012cfceebd4ac7cf88c1b31d027bbdd3cd704649b692e2e935236b7e8",
+            58,
+            EngineType::Moonshine,
+            0.70,
+            0.90,
+            false,
+            false,
+            english.clone(),
+            false,
+            "moonshine",
+            Some("en"),
+        ));
+        add(onnx_model(
+            "moonshine-tiny-streaming-en",
+            "Moonshine V2 Tiny",
+            "Ultra-fast, English only",
+            "moonshine-tiny-streaming-en",
+            "https://blob.handy.computer/moonshine-tiny-streaming-en.tar.gz",
+            "465addcfca9e86117415677dfdc98b21edc53537210333a3ecdb58509a80abaf",
+            31,
+            EngineType::MoonshineStreaming,
+            0.55,
+            0.95,
+            false,
+            false,
+            english.clone(),
+            false,
+            "moonshine",
+            Some("en"),
+        ));
+        add(onnx_model(
+            "moonshine-small-streaming-en",
+            "Moonshine V2 Small",
+            "Fast, English only. Good balance of speed and accuracy.",
+            "moonshine-small-streaming-en",
+            "https://blob.handy.computer/moonshine-small-streaming-en.tar.gz",
+            "dbb3e1c1832bd88a4ac712f7449a136cc2c9a18c5fe33a12ed1b7cb1cfe9cdd5",
+            100,
+            EngineType::MoonshineStreaming,
+            0.65,
+            0.90,
+            false,
+            false,
+            english.clone(),
+            false,
+            "moonshine",
+            Some("en"),
+        ));
+        add(onnx_model(
+            "moonshine-medium-streaming-en",
+            "Moonshine V2 Medium",
+            "English only. High quality.",
+            "moonshine-medium-streaming-en",
+            "https://blob.handy.computer/moonshine-medium-streaming-en.tar.gz",
+            "07a66f3bff1c77e75a2f637e5a263928a08baae3c29c4c053fc968a9a9373d13",
+            192,
+            EngineType::MoonshineStreaming,
+            0.75,
+            0.80,
+            false,
+            false,
+            english.clone(),
+            false,
+            "moonshine",
+            Some("en"),
+        ));
+        add(onnx_model(
+            "sense-voice-int8",
+            "SenseVoice",
+            "Very fast. Chinese, English, Japanese, Korean, Cantonese.",
+            "sense-voice-int8",
+            "https://blob.handy.computer/sense-voice-int8.tar.gz",
+            "171d611fe5d353a50bbb741b6f3ef42559b1565685684e9aa888ef563ba3e8a4",
+            160,
+            EngineType::SenseVoice,
+            0.65,
+            0.95,
+            false,
+            false,
             vec!["zh", "zh-Hans", "zh-Hant", "en", "yue", "ja", "ko"]
                 .into_iter()
                 .map(String::from)
-                .collect();
+                .collect(),
+            true,
+            "alibaba",
+            None,
+        ));
+        add(onnx_model(
+            "gigaam-v3-e2e-ctc",
+            "GigaAM v3",
+            "Russian speech recognition. Fast and accurate.",
+            "giga-am-v3-int8",
+            "https://blob.handy.computer/giga-am-v3-int8.tar.gz",
+            "d872462268430db140b69b72e0fc4b787b194c1dbe51b58de39444d55b6da45b",
+            152,
+            EngineType::GigaAM,
+            0.85,
+            0.75,
+            false,
+            false,
+            vec!["ru".to_string()],
+            false,
+            "sber",
+            None,
+        ));
+        add(onnx_model(
+            "canary-180m-flash",
+            "Canary 180M Flash",
+            "Very fast. English, German, Spanish, French. Supports translation.",
+            "canary-180m-flash",
+            "https://blob.handy.computer/canary-180m-flash.tar.gz",
+            "6d9cfca6118b296e196eaedc1c8fa9788305a7b0f1feafdb6dc91932ab6e53f7",
+            146,
+            EngineType::Canary,
+            0.75,
+            0.85,
+            true,
+            false,
+            vec!["en", "de", "es", "fr"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+            true,
+            "nvidia",
+            None,
+        ));
+        add(onnx_model(
+            "canary-1b-v2",
+            "Canary 1B v2",
+            "Accurate multilingual. 25 European languages. Supports translation.",
+            "canary-1b-v2",
+            "https://blob.handy.computer/canary-1b-v2.tar.gz",
+            "02305b2a25f9cf3e7deaffa7f94df00efa44f442cd55c101c2cb9c000f904666",
+            692,
+            EngineType::Canary,
+            0.85,
+            0.70,
+            true,
+            false,
+            european_languages,
+            true,
+            "nvidia",
+            None,
+        ));
 
-        available_models.insert(
-            "sense-voice-int8".to_string(),
-            ModelInfo {
-                id: "sense-voice-int8".to_string(),
-                name: "SenseVoice".to_string(),
-                description: "Very fast. Chinese, English, Japanese, Korean, Cantonese."
-                    .to_string(),
-                filename: "sense-voice-int8".to_string(),
-                url: Some("https://blob.handy.computer/sense-voice-int8.tar.gz".to_string()),
-                sha256: Some(
-                    "171d611fe5d353a50bbb741b6f3ef42559b1565685684e9aa888ef563ba3e8a4".to_string(),
-                ),
-                size_mb: 160,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::SenseVoice,
-                accuracy_score: 0.65,
-                speed_score: 0.95,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: sense_voice_languages,
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
+        /* ---------- Cloud voice models (providers with a free tier) ------- */
 
-        // GigaAM v3 supported languages
-        let gigaam_languages: Vec<String> = vec!["ru"].into_iter().map(String::from).collect();
-
-        available_models.insert(
-            "gigaam-v3-e2e-ctc".to_string(),
-            ModelInfo {
-                id: "gigaam-v3-e2e-ctc".to_string(),
-                name: "GigaAM v3".to_string(),
-                description: "Russian speech recognition. Fast and accurate.".to_string(),
-                filename: "giga-am-v3-int8".to_string(),
-                url: Some("https://blob.handy.computer/giga-am-v3-int8.tar.gz".to_string()),
-                sha256: Some(
-                    "d872462268430db140b69b72e0fc4b787b194c1dbe51b58de39444d55b6da45b".to_string(),
-                ),
-                size_mb: 152,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::GigaAM,
-                accuracy_score: 0.85,
-                speed_score: 0.75,
-                supports_translation: false,
-                is_recommended: false,
-                supported_languages: gigaam_languages,
-                supports_language_selection: false,
-                is_custom: false,
-            },
-        );
-
-        // Canary 180m Flash supported languages (4 languages)
-        let canary_flash_languages: Vec<String> = vec!["en", "de", "es", "fr"]
+        add(cloud_model(
+            "groq-whisper-large-v3-turbo",
+            "Whisper Large v3 Turbo",
+            "Whisper served by Groq. Free tier, very fast, 99 languages.",
+            "groq",
+            "whisper-large-v3-turbo",
+            0.82,
+            0.95,
+            false,
+            whisper_languages.clone(),
+            "openai",
+            None,
+        ));
+        add(cloud_model(
+            "groq-whisper-large-v3",
+            "Whisper Large v3",
+            "Full-size Whisper served by Groq. Free tier, 99 languages.",
+            "groq",
+            "whisper-large-v3",
+            0.88,
+            0.90,
+            true,
+            whisper_languages.clone(),
+            "openai",
+            None,
+        ));
+        add(cloud_model(
+            "mistral-voxtral-mini-transcribe",
+            "Voxtral Mini Transcribe",
+            "Mistral's transcription model. Free Experiment plan.",
+            "mistral",
+            "voxtral-mini-latest",
+            0.88,
+            0.90,
+            false,
+            whisper_languages.clone(),
+            "mistral",
+            Some("new"),
+        ));
+        add(cloud_model(
+            "deepgram-nova-2",
+            "Nova 2",
+            "Deepgram's previous generation. $200 free credit.",
+            "deepgram",
+            "nova-2",
+            0.82,
+            0.95,
+            false,
+            whisper_languages.clone(),
+            "deepgram",
+            None,
+        ));
+        add(cloud_model(
+            "deepgram-nova-3",
+            "Nova 3",
+            "Deepgram's flagship model. $200 free credit.",
+            "deepgram",
+            "nova-3",
+            0.90,
+            0.95,
+            false,
+            whisper_languages.clone(),
+            "deepgram",
+            None,
+        ));
+        add(cloud_model(
+            "deepgram-nova-3-medical",
+            "Nova Medical",
+            "Nova 3 tuned for clinical vocabulary. $200 free credit.",
+            "deepgram",
+            "nova-3-medical",
+            0.88,
+            0.95,
+            false,
+            english.clone(),
+            "deepgram",
+            None,
+        ));
+        add(cloud_model(
+            "elevenlabs-scribe",
+            "Scribe",
+            "ElevenLabs Scribe v2. Free plan credits, 90+ languages.",
+            "elevenlabs",
+            "scribe_v2",
+            0.92,
+            0.85,
+            false,
+            whisper_languages.clone(),
+            "elevenlabs",
+            None,
+        ));
+        add(cloud_model(
+            "cohere-transcribe",
+            "Cohere Transcribe",
+            "Open 2B model served by Cohere. Free trial key, 14 languages.",
+            "cohere",
+            "cohere-transcribe-03-2026",
+            0.92,
+            0.88,
+            false,
+            vec![
+                "en", "de", "fr", "it", "es", "pt", "el", "nl", "pl", "vi", "zh", "ar", "ja", "ko",
+            ]
             .into_iter()
             .map(String::from)
-            .collect();
-
-        available_models.insert(
-            "canary-180m-flash".to_string(),
-            ModelInfo {
-                id: "canary-180m-flash".to_string(),
-                name: "Canary 180M Flash".to_string(),
-                description: "Very fast. English, German, Spanish, French. Supports translation."
-                    .to_string(),
-                filename: "canary-180m-flash".to_string(),
-                url: Some("https://blob.handy.computer/canary-180m-flash.tar.gz".to_string()),
-                sha256: Some(
-                    "6d9cfca6118b296e196eaedc1c8fa9788305a7b0f1feafdb6dc91932ab6e53f7".to_string(),
-                ),
-                size_mb: 146,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::Canary,
-                accuracy_score: 0.75,
-                speed_score: 0.85,
-                supports_translation: true,
-                is_recommended: false,
-                supported_languages: canary_flash_languages,
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
-
-        // Canary 1B v2 supported languages (25 EU languages)
-        let canary_1b_languages: Vec<String> = vec![
-            "bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv",
-            "lt", "mt", "pl", "pt", "ro", "sk", "sl", "es", "sv", "ru", "uk",
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect();
-
-        available_models.insert(
-            "canary-1b-v2".to_string(),
-            ModelInfo {
-                id: "canary-1b-v2".to_string(),
-                name: "Canary 1B v2".to_string(),
-                description: "Accurate multilingual. 25 European languages. Supports translation."
-                    .to_string(),
-                filename: "canary-1b-v2".to_string(),
-                url: Some("https://blob.handy.computer/canary-1b-v2.tar.gz".to_string()),
-                sha256: Some(
-                    "02305b2a25f9cf3e7deaffa7f94df00efa44f442cd55c101c2cb9c000f904666".to_string(),
-                ),
-                size_mb: 692,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::Canary,
-                accuracy_score: 0.85,
-                speed_score: 0.70,
-                supports_translation: true,
-                is_recommended: false,
-                supported_languages: canary_1b_languages,
-                supports_language_selection: true,
-                is_custom: false,
-            },
-        );
+            .collect(),
+            "cohere",
+            Some("new"),
+        ));
 
         // Auto-discover custom Whisper models (.bin files) in the models directory
         if let Err(e) = Self::discover_custom_whisper_models(&models_dir, &mut available_models) {
@@ -603,6 +789,8 @@ impl ModelManager {
     }
 
     pub fn get_available_models(&self) -> Vec<ModelInfo> {
+        // API keys may have changed since the last scan.
+        self.refresh_cloud_availability();
         let models = self.available_models.lock().unwrap();
         models.values().cloned().collect()
     }
@@ -610,6 +798,32 @@ impl ModelManager {
     pub fn get_model_info(&self, model_id: &str) -> Option<ModelInfo> {
         let models = self.available_models.lock().unwrap();
         models.get(model_id).cloned()
+    }
+
+    /// Whether the provider backing a cloud model currently has an API key.
+    fn cloud_model_available(settings: &crate::settings::AppSettings, model: &ModelInfo) -> bool {
+        let Some(provider_id) = model.provider_id.as_deref() else {
+            return false;
+        };
+        if provider_id == "custom" {
+            return true;
+        }
+        settings
+            .post_process_api_keys
+            .get(provider_id)
+            .map(|key| !key.trim().is_empty())
+            .unwrap_or(false)
+    }
+
+    /// Mark cloud models as available when their provider has an API key.
+    pub fn refresh_cloud_availability(&self) {
+        let settings = get_settings(&self.app_handle);
+        let mut models = self.available_models.lock().unwrap();
+        for model in models.values_mut() {
+            if model.is_cloud {
+                model.is_downloaded = Self::cloud_model_available(&settings, model);
+            }
+        }
     }
 
     fn migrate_bundled_models(&self) -> Result<()> {
@@ -684,10 +898,15 @@ impl ModelManager {
     }
 
     fn update_download_status(&self) -> Result<()> {
+        let settings = get_settings(&self.app_handle);
         let mut models = self.available_models.lock().unwrap();
 
         for model in models.values_mut() {
-            if model.is_directory {
+            if model.is_cloud {
+                model.is_downloaded = Self::cloud_model_available(&settings, model);
+                model.is_downloading = false;
+                model.partial_size = 0;
+            } else if model.is_directory {
                 // For directory-based models, check if the directory exists
                 let model_path = self.models_dir.join(&model.filename);
                 let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
@@ -758,7 +977,10 @@ impl ModelManager {
         // If no model is selected, pick the first downloaded local model.
         if settings.selected_model.is_empty() {
             let models = self.available_models.lock().unwrap();
-            if let Some(available_model) = models.values().find(|model| model.is_downloaded) {
+            if let Some(available_model) = models
+                .values()
+                .find(|model| model.is_downloaded && !model.is_cloud)
+            {
                 info!(
                     "Auto-selecting model: {} ({})",
                     available_model.id, available_model.name
@@ -890,6 +1112,11 @@ impl ModelManager {
                     supported_languages: vec![],
                     supports_language_selection: true,
                     is_custom: true,
+                    vendor: "custom".to_string(),
+                    is_cloud: false,
+                    provider_id: None,
+                    cloud_model: None,
+                    badge: None,
                 },
             );
         }
@@ -955,6 +1182,13 @@ impl ModelManager {
 
         let model_info =
             model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+
+        if model_info.is_cloud {
+            return Err(anyhow::anyhow!(
+                "{} runs in the cloud: add an API key for its provider instead of downloading it",
+                model_info.name
+            ));
+        }
 
         let url = model_info
             .url
@@ -1298,6 +1532,12 @@ impl ModelManager {
         let model_info =
             model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
 
+        if model_info.is_cloud {
+            return Err(anyhow::anyhow!(
+                "Cloud models have no local files to delete"
+            ));
+        }
+
         debug!("ModelManager: Found model info: {:?}", model_info);
 
         let model_path = self.models_dir.join(&model_info.filename);
@@ -1364,6 +1604,13 @@ impl ModelManager {
 
         if !model_info.is_downloaded {
             return Err(anyhow::anyhow!("Model not available: {}", model_id));
+        }
+
+        if model_info.is_cloud {
+            return Err(anyhow::anyhow!(
+                "Cloud model {} has no local files",
+                model_id
+            ));
         }
 
         // Ensure we don't return partial files/directories
@@ -1483,6 +1730,11 @@ mod tests {
                 supported_languages: vec!["en".to_string()],
                 supports_language_selection: true,
                 is_custom: false,
+                vendor: "openai".to_string(),
+                is_cloud: false,
+                provider_id: None,
+                cloud_model: None,
+                badge: None,
             },
         );
 

@@ -3,6 +3,7 @@ pub mod gemini;
 pub mod history;
 pub mod local_llm;
 pub mod models;
+pub mod modes;
 pub mod transcription;
 
 use crate::settings::{get_settings, write_settings, AppSettings, LogLevel};

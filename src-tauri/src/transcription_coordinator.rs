@@ -47,6 +47,7 @@ pub struct TranscriptionCoordinator {
 
 pub fn is_transcribe_binding(id: &str) -> bool {
     id == "transcribe"
+        || id == "push_to_talk"
         || id == "transcribe_with_post_process"
         || id.starts_with(ACTION_BINDING_PREFIX)
 }
