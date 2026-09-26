@@ -101,14 +101,6 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
     };
     let version_i = MenuItem::with_id(app, "version", &version_label, false, None::<&str>)
         .expect("failed to create version item");
-    let settings_i = MenuItem::with_id(
-        app,
-        "settings",
-        &strings.settings,
-        true,
-        settings_accelerator,
-    )
-    .expect("failed to create settings item");
     let check_updates_i = MenuItem::with_id(
         app,
         "check_updates",
@@ -169,6 +161,80 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
     )
     .expect("failed to create unload model item");
 
+    // Start/stop recording, showing the main shortcut like Superwhisper.
+    let recording = !matches!(state, TrayIconState::Idle);
+    let record_label = if recording {
+        &strings.stop_recording
+    } else {
+        &strings.start_recording
+    };
+    let record_accelerator = settings
+        .bindings
+        .get("transcribe")
+        .and_then(|b| binding_to_accelerator(&b.current_binding));
+    let toggle_recording_i = MenuItem::with_id(
+        app,
+        "toggle_recording",
+        record_label,
+        !matches!(state, TrayIconState::Transcribing),
+        record_accelerator.as_deref(),
+    )
+    .or_else(|_| {
+        MenuItem::with_id(
+            app,
+            "toggle_recording",
+            record_label,
+            !matches!(state, TrayIconState::Transcribing),
+            None::<&str>,
+        )
+    })
+    .expect("failed to create recording item");
+
+    // Mode submenu — label is the active mode name
+    let active_mode_id = settings.active_mode_id.clone().unwrap_or_default();
+    let mode_label = settings
+        .post_process_actions
+        .iter()
+        .find(|a| a.id == active_mode_id)
+        .map(|a| format!("{}: {}", strings.mode, a.name))
+        .unwrap_or_else(|| strings.mode.clone());
+    let mode_submenu = {
+        let submenu = Submenu::with_id(app, "mode_submenu", &mode_label, true)
+            .expect("failed to create mode submenu");
+        for action in &settings.post_process_actions {
+            let item = CheckMenuItem::with_id(
+                app,
+                format!("mode_select:{}", action.id),
+                &action.name,
+                true,
+                action.id == active_mode_id,
+                None::<&str>,
+            )
+            .expect("failed to create mode item");
+            let _ = submenu.append(&item);
+        }
+        submenu
+    };
+
+    let open_app_i = MenuItem::with_id(
+        app,
+        "settings",
+        &strings.open_app,
+        true,
+        settings_accelerator,
+    )
+    .expect("failed to create open item");
+    let history_i = MenuItem::with_id(app, "history", &strings.history, true, None::<&str>)
+        .expect("failed to create history item");
+    let open_recordings_i = MenuItem::with_id(
+        app,
+        "open_recordings",
+        &strings.open_recordings,
+        true,
+        None::<&str>,
+    )
+    .expect("failed to create recordings item");
+
     let menu = match state {
         TrayIconState::Recording | TrayIconState::Transcribing => {
             let cancel_i = MenuItem::with_id(app, "cancel", &strings.cancel, true, None::<&str>)
@@ -178,12 +244,13 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
                 &[
                     &version_i,
                     &separator(),
+                    &toggle_recording_i,
                     &cancel_i,
                     &separator(),
                     &copy_last_transcript_i,
+                    &history_i,
                     &separator(),
-                    &settings_i,
-                    &check_updates_i,
+                    &open_app_i,
                     &separator(),
                     &quit_i,
                 ],
@@ -195,12 +262,17 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
             &[
                 &version_i,
                 &separator(),
-                &copy_last_transcript_i,
+                &toggle_recording_i,
                 &separator(),
+                &mode_submenu,
                 &model_submenu,
                 &unload_model_i,
                 &separator(),
-                &settings_i,
+                &copy_last_transcript_i,
+                &history_i,
+                &open_recordings_i,
+                &separator(),
+                &open_app_i,
                 &check_updates_i,
                 &separator(),
                 &quit_i,
@@ -212,6 +284,41 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
     let tray = app.state::<TrayIcon>();
     let _ = tray.set_menu(Some(menu));
     let _ = tray.set_icon_as_template(true);
+}
+
+/// Convert a stored binding ("option+shift+k") into a menu accelerator
+/// ("Alt+Shift+K"). Returns `None` for bindings the menu cannot display.
+fn binding_to_accelerator(binding: &str) -> Option<String> {
+    let parts: Vec<String> = binding
+        .split('+')
+        .map(|p| p.trim().to_lowercase())
+        .filter(|p| !p.is_empty())
+        .map(|p| {
+            let p = p
+                .trim_end_matches("_left")
+                .trim_end_matches("_right")
+                .to_string();
+            match p.as_str() {
+                "option" | "alt" => "Alt".to_string(),
+                "command" | "cmd" | "meta" | "super" => "Cmd".to_string(),
+                "ctrl" | "control" => "Ctrl".to_string(),
+                "shift" => "Shift".to_string(),
+                "space" => "Space".to_string(),
+                "escape" | "esc" => "Escape".to_string(),
+                "enter" | "return" => "Enter".to_string(),
+                "tab" => "Tab".to_string(),
+                other if other.len() == 1 => other.to_uppercase(),
+                other if other.starts_with('f') && other[1..].parse::<u8>().is_ok() => {
+                    other.to_uppercase()
+                }
+                _ => String::new(),
+            }
+        })
+        .collect();
+    if parts.is_empty() || parts.iter().any(|p| p.is_empty()) {
+        return None;
+    }
+    Some(parts.join("+"))
 }
 
 fn last_transcript_text(entry: &HistoryEntry) -> &str {
@@ -286,6 +393,18 @@ mod tests {
     fn uses_post_processed_text_when_available() {
         let entry = build_entry("raw", Some("processed"));
         assert_eq!(last_transcript_text(&entry), "processed");
+    }
+
+    #[test]
+    fn converts_bindings_to_menu_accelerators() {
+        use super::binding_to_accelerator;
+        assert_eq!(binding_to_accelerator("option+m").as_deref(), Some("Alt+M"));
+        assert_eq!(
+            binding_to_accelerator("option_left+shift+space").as_deref(),
+            Some("Alt+Shift+Space")
+        );
+        assert_eq!(binding_to_accelerator("fn").as_deref(), None);
+        assert_eq!(binding_to_accelerator("").as_deref(), None);
     }
 
     #[test]

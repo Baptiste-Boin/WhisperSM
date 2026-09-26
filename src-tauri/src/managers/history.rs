@@ -110,9 +110,11 @@ pub struct HistoryManager {
 
 impl HistoryManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
-        // Create recordings directory in app data dir
+        // Recordings live in Documents/WhisperSM/recordings; the database
+        // stays in the application-support folder.
         let app_data_dir = crate::portable::app_data_dir(app_handle)?;
-        let recordings_dir = app_data_dir.join("recordings");
+        let recordings_dir = crate::storage::recordings_dir(app_handle);
+        let legacy_recordings_dir = app_data_dir.join("recordings");
         let db_path = app_data_dir.join("history.db");
 
         // Ensure recordings directory exists
@@ -130,7 +132,124 @@ impl HistoryManager {
         // Initialize database and run migrations synchronously
         manager.init_database()?;
 
+        if legacy_recordings_dir != manager.recordings_dir {
+            if let Err(e) = manager.migrate_legacy_recordings(&legacy_recordings_dir) {
+                error!("Failed to move legacy recordings: {}", e);
+            }
+        }
+
         Ok(manager)
+    }
+
+    /// Move `recordings/whispersm-<ts>.wav` files from the old location into
+    /// `recordings/<ts>/output.wav` (with a `meta.json`) and update the
+    /// database paths.
+    fn migrate_legacy_recordings(&self, legacy_dir: &std::path::Path) -> Result<()> {
+        if !legacy_dir.is_dir() {
+            return Ok(());
+        }
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {} FROM transcription_history WHERE file_name NOT LIKE '%/%'",
+            ENTRY_COLUMNS
+        ))?;
+        let entries = stmt
+            .query_map([], Self::map_history_entry)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        drop(stmt);
+
+        let mut moved = 0;
+        for entry in entries {
+            let old_path = legacy_dir.join(&entry.file_name);
+            if !old_path.is_file() {
+                continue;
+            }
+            let (file_name, new_path) =
+                crate::storage::allocate_recording(&self.recordings_dir, entry.timestamp);
+            if let Err(e) = fs::rename(&old_path, &new_path).or_else(|_| {
+                fs::copy(&old_path, &new_path).and_then(|_| fs::remove_file(&old_path))
+            }) {
+                error!("Failed to move {}: {}", old_path.display(), e);
+                let _ = crate::storage::remove_recording(&self.recordings_dir, &file_name);
+                continue;
+            }
+            conn.execute(
+                "UPDATE transcription_history SET file_name = ?1 WHERE id = ?2",
+                params![&file_name, entry.id],
+            )?;
+            let meta = self.basic_meta(&entry);
+            crate::storage::write_recording_meta(&self.recordings_dir, &file_name, &meta);
+            moved += 1;
+        }
+        // Remove the old folder when nothing is left in it.
+        let _ = fs::remove_dir(legacy_dir);
+        if moved > 0 {
+            info!(
+                "Moved {} recordings to {}",
+                moved,
+                self.recordings_dir.display()
+            );
+        }
+        Ok(())
+    }
+
+    /// Minimal `meta.json` for an entry, built from the history row only.
+    fn basic_meta(&self, entry: &HistoryEntry) -> crate::storage::RecordingMeta {
+        let datetime = DateTime::from_timestamp(entry.timestamp, 0)
+            .map(|utc| {
+                utc.with_timezone(&Local)
+                    .format("%Y-%m-%dT%H:%M:%S")
+                    .to_string()
+            })
+            .unwrap_or_default();
+        crate::storage::RecordingMeta {
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            result: entry
+                .post_processed_text
+                .clone()
+                .unwrap_or_else(|| entry.transcription_text.clone()),
+            raw_result: entry.transcription_text.clone(),
+            prompt: entry.post_process_prompt.clone().unwrap_or_default(),
+            duration: entry.duration_ms.unwrap_or(0),
+            datetime,
+            application_context_enabled: entry.app_name.is_some(),
+            prompt_context: crate::storage::PromptContext {
+                application_context: crate::storage::ApplicationContext {
+                    nouns: Vec::new(),
+                    name: entry.app_name.clone().unwrap_or_default(),
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Create the folder for a new recording. Returns the path stored in
+    /// history (relative to the recordings folder) and the absolute WAV path.
+    pub fn allocate_recording(&self) -> (String, PathBuf) {
+        crate::storage::allocate_recording(&self.recordings_dir, Utc::now().timestamp())
+    }
+
+    /// Write the recording's `meta.json`.
+    pub fn write_meta(&self, file_name: &str, meta: &crate::storage::RecordingMeta) {
+        crate::storage::write_recording_meta(&self.recordings_dir, file_name, meta);
+    }
+
+    /// Refresh the text fields of the recording's `meta.json`.
+    pub fn update_meta_text(
+        &self,
+        file_name: &str,
+        raw_result: &str,
+        result: &str,
+        prompt: Option<&str>,
+    ) {
+        crate::storage::update_recording_meta_text(
+            &self.recordings_dir,
+            file_name,
+            raw_result,
+            result,
+            prompt,
+        );
     }
 
     fn init_database(&self) -> Result<()> {
@@ -427,14 +546,13 @@ impl HistoryManager {
         tx.commit()?;
 
         for (_, file_name) in entries {
-            let file_path = self.recordings_dir.join(file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete WAV file {}: {}", file_name, e);
-                } else {
-                    debug!("Deleted old WAV file: {}", file_name);
+            match crate::storage::remove_recording(&self.recordings_dir, file_name) {
+                Ok(true) => {
+                    debug!("Deleted old recording: {}", file_name);
                     deleted_count += 1;
                 }
+                Ok(false) => {}
+                Err(e) => error!("Failed to delete recording {}: {}", file_name, e),
             }
         }
 
@@ -759,13 +877,11 @@ impl HistoryManager {
 
         // Get the entry to find the file name
         if let Some(entry) = self.get_entry_by_id(id).await? {
-            // Delete the audio file first
-            let file_path = self.get_audio_file_path(&entry.file_name);
-            if file_path.exists() {
-                if let Err(e) = fs::remove_file(&file_path) {
-                    error!("Failed to delete audio file {}: {}", entry.file_name, e);
-                    // Continue with database deletion even if file deletion fails
-                }
+            // Delete the recording folder (audio + meta.json) first
+            if let Err(e) = crate::storage::remove_recording(&self.recordings_dir, &entry.file_name)
+            {
+                error!("Failed to delete recording {}: {}", entry.file_name, e);
+                // Continue with database deletion even if file deletion fails
             }
         }
 

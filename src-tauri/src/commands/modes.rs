@@ -5,7 +5,7 @@
 //! shortcut; both paths notify every window through `active-mode-changed`.
 
 use crate::settings::{get_settings, write_settings, PostProcessAction};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Clone, serde::Serialize)]
 struct ActiveModeEvent {
@@ -35,6 +35,15 @@ pub fn set_active_mode_internal(app: &AppHandle, id: &str) -> Result<PostProcess
     settings.active_mode_id = Some(mode.id.clone());
     write_settings(app, settings);
     emit_active_mode(app, &mode);
+    // Keep the menu bar's Mode submenu in sync (not while recording, where
+    // the menu shows the recording controls).
+    let recording = app
+        .try_state::<std::sync::Arc<crate::managers::audio::AudioRecordingManager>>()
+        .map(|manager| manager.is_recording())
+        .unwrap_or(false);
+    if !recording {
+        crate::tray::update_tray_menu(app, &crate::tray::TrayIconState::Idle, None);
+    }
     Ok(mode)
 }
 
