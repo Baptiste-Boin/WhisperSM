@@ -591,8 +591,9 @@ fn default_selected_language() -> String {
 fn default_overlay_position() -> OverlayPosition {
     #[cfg(target_os = "linux")]
     return OverlayPosition::None;
+    // Recording bubble at the top of the screen, like Superwhisper.
     #[cfg(not(target_os = "linux"))]
-    return OverlayPosition::Bottom;
+    return OverlayPosition::Top;
 }
 
 fn default_debug_mode() -> bool {
@@ -1233,7 +1234,8 @@ pub fn get_default_settings() -> AppSettings {
 
     AppSettings {
         bindings,
-        push_to_talk: true,
+        // Press once to start, once to stop (like Superwhisper).
+        push_to_talk: false,
         audio_feedback: false,
         audio_feedback_volume: default_audio_feedback_volume(),
         sound_theme: default_sound_theme(),
@@ -1405,6 +1407,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
     if changed {
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
+    crate::storage::mirror_modes(&settings);
 
     settings
 }
@@ -1469,6 +1472,7 @@ pub fn write_settings(app: &AppHandle, settings: AppSettings) {
         .expect("Failed to initialize store");
 
     store.set("settings", serde_json::to_value(&settings).unwrap());
+    crate::storage::mirror_modes(&settings);
 }
 
 pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {

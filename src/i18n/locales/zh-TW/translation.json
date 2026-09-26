@@ -1,12 +1,17 @@
 {
   "tray": {
-    "settings": "設定...",
     "checkUpdates": "檢查更新...",
     "copyLastTranscript": "複製最新轉錄",
     "unloadModel": "卸載模型",
     "model": "模型",
     "quit": "結束",
-    "cancel": "取消"
+    "cancel": "取消",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "mode": "Mode",
+    "openApp": "Open WhisperSM",
+    "history": "History…",
+    "openRecordings": "Open Recordings Folder"
   },
   "sidebar": {
     "general": "一般",

@@ -1,12 +1,17 @@
 {
   "tray": {
-    "settings": "Cài đặt...",
     "checkUpdates": "Kiểm tra cập nhật...",
     "copyLastTranscript": "Sao chép bản chép lời mới nhất",
     "unloadModel": "Dỡ mô hình",
     "model": "Mô hình",
     "quit": "Thoát",
-    "cancel": "Hủy"
+    "cancel": "Hủy",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "mode": "Mode",
+    "openApp": "Open WhisperSM",
+    "history": "History…",
+    "openRecordings": "Open Recordings Folder"
   },
   "sidebar": {
     "general": "Chung",

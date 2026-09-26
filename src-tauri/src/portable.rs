@@ -84,6 +84,10 @@ pub fn resolve_app_data(app: &tauri::AppHandle, relative: &str) -> Result<PathBu
 /// Returns an absolute path in portable mode (so the store plugin writes to
 /// the portable Data dir) or the original relative path otherwise.
 pub fn store_path(relative: &str) -> PathBuf {
+    // Settings live in the WhisperSM folder (Documents/WhisperSM/settings).
+    if let Some(path) = crate::storage::settings_file(relative) {
+        return path;
+    }
     if let Some(dir) = data_dir() {
         dir.join(relative)
     } else {

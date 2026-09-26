@@ -26,10 +26,9 @@ pub fn is_portable() -> bool {
 #[tauri::command]
 #[specta::specta]
 pub fn get_app_dir_path(app: AppHandle) -> Result<String, String> {
-    let app_data_dir = crate::portable::app_data_dir(&app)
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    Ok(app_data_dir.to_string_lossy().to_string())
+    // The user-visible WhisperSM folder (Documents/WhisperSM).
+    let folder = crate::storage::init(&app);
+    Ok(folder.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -74,10 +73,7 @@ pub fn set_log_level(app: AppHandle, level: LogLevel) -> Result<(), String> {
 #[specta::specta]
 #[tauri::command]
 pub fn open_recordings_folder(app: AppHandle) -> Result<(), String> {
-    let app_data_dir = crate::portable::app_data_dir(&app)
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let recordings_dir = app_data_dir.join("recordings");
+    let recordings_dir = crate::storage::recordings_dir(&app);
 
     let path = recordings_dir.to_string_lossy().as_ref().to_string();
     app.opener()
@@ -104,10 +100,8 @@ pub fn open_log_dir(app: AppHandle) -> Result<(), String> {
 #[specta::specta]
 #[tauri::command]
 pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
-    let app_data_dir = crate::portable::app_data_dir(&app)
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let path = app_data_dir.to_string_lossy().as_ref().to_string();
+    let folder = crate::storage::init(&app);
+    let path = folder.to_string_lossy().as_ref().to_string();
     app.opener()
         .open_path(path, None::<String>)
         .map_err(|e| format!("Failed to open app data directory: {}", e))?;

@@ -592,8 +592,8 @@ impl ShortcutAction for TranscribeAction {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
                     let duration_ms = (sample_count as i64 * 1000) / WHISPER_SAMPLE_RATE as i64;
-                    let file_name = format!("whispersm-{}.wav", chrono::Utc::now().timestamp());
-                    let wav_path = hm.recordings_dir().join(&file_name);
+                    // recordings/<unix time>/output.wav (+ meta.json below)
+                    let (file_name, wav_path) = hm.allocate_recording();
                     let wav_path_for_verify = wav_path.clone();
                     let samples_for_wav = samples.clone();
                     let wav_handle = tauri::async_runtime::spawn_blocking(move || {
@@ -659,6 +659,15 @@ impl ShortcutAction for TranscribeAction {
                                 })
                                 .cloned();
                             let post_process_requested = post_process || action.is_some();
+                            // Mode shown in meta.json: the one that ran, else
+                            // the active mode for the main shortcuts.
+                            let meta_mode = action.clone().or_else(|| {
+                                if is_main_shortcut {
+                                    settings.active_mode().cloned()
+                                } else {
+                                    None
+                                }
+                            });
 
                             let processed = if let Some(action) = action {
                                 show_processing_overlay(&ah);
@@ -685,6 +694,21 @@ impl ShortcutAction for TranscribeAction {
 
                             // Save to history if WAV was saved
                             if wav_saved {
+                                let meta = build_recording_meta(
+                                    &ah,
+                                    &settings,
+                                    RecordingSummary {
+                                        raw: &transcription,
+                                        result: &processed.final_text,
+                                        prompt: processed.post_process_prompt.as_deref(),
+                                        mode: meta_mode.as_ref(),
+                                        duration_ms,
+                                        processing_ms: transcription_time.elapsed().as_millis()
+                                            as i64,
+                                        app_name: app_name.as_deref(),
+                                    },
+                                );
+                                hm.write_meta(&file_name, &meta);
                                 if let Err(err) = hm.save_entry(
                                     file_name,
                                     transcription,
@@ -696,6 +720,11 @@ impl ShortcutAction for TranscribeAction {
                                 ) {
                                     error!("Failed to save history entry: {}", err);
                                 }
+                            } else {
+                                let _ = crate::storage::remove_recording(
+                                    hm.recordings_dir(),
+                                    &file_name,
+                                );
                             }
 
                             if processed.final_text.is_empty() {
@@ -727,6 +756,22 @@ impl ShortcutAction for TranscribeAction {
                             debug!("Global Shortcut Transcription error: {}", err);
                             // Save entry with empty text so user can retry
                             if wav_saved {
+                                let settings = get_settings(&ah);
+                                let meta = build_recording_meta(
+                                    &ah,
+                                    &settings,
+                                    RecordingSummary {
+                                        raw: "",
+                                        result: "",
+                                        prompt: None,
+                                        mode: None,
+                                        duration_ms,
+                                        processing_ms: transcription_time.elapsed().as_millis()
+                                            as i64,
+                                        app_name: app_name.as_deref(),
+                                    },
+                                );
+                                hm.write_meta(&file_name, &meta);
                                 if let Err(save_err) = hm.save_entry(
                                     file_name,
                                     String::new(),
@@ -755,6 +800,90 @@ impl ShortcutAction for TranscribeAction {
             "TranscribeAction::stop completed in {:?}",
             stop_time.elapsed()
         );
+    }
+}
+
+/// What happened during one dictation, for `meta.json`.
+pub(crate) struct RecordingSummary<'a> {
+    pub raw: &'a str,
+    pub result: &'a str,
+    pub prompt: Option<&'a str>,
+    pub mode: Option<&'a PostProcessAction>,
+    pub duration_ms: i64,
+    pub processing_ms: i64,
+    pub app_name: Option<&'a str>,
+}
+
+/// Build the Superwhisper-style `meta.json` of a recording.
+pub(crate) fn build_recording_meta(
+    app: &AppHandle,
+    settings: &AppSettings,
+    summary: RecordingSummary<'_>,
+) -> crate::storage::RecordingMeta {
+    use crate::storage::{ApplicationContext, ModeContext, PromptContext, SystemContext};
+
+    let model_key = app
+        .try_state::<Arc<TranscriptionManager>>()
+        .and_then(|tm| tm.get_current_model())
+        .unwrap_or_else(|| settings.selected_model.clone());
+    let model_name = app
+        .try_state::<Arc<crate::managers::model::ModelManager>>()
+        .and_then(|mm| mm.get_model_info(&model_key))
+        .map(|info| info.name)
+        .unwrap_or_default();
+    let language_model_name = summary
+        .mode
+        .filter(|mode| !mode.is_voice_only())
+        .and_then(|mode| mode.llm_model_id.as_deref())
+        .and_then(|id| settings.llm_model(id))
+        .map(|model| model.label.clone())
+        .unwrap_or_default();
+    let language = settings.selected_language.clone();
+    let now = chrono::Local::now();
+
+    crate::storage::RecordingMeta {
+        language_selected: language.clone(),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        model_key,
+        recording_device: settings
+            .selected_microphone
+            .clone()
+            .filter(|mic| mic != "default" && mic != "Default")
+            .unwrap_or_default(),
+        language_model_name,
+        result: summary.result.to_string(),
+        prompt: summary.prompt.unwrap_or_default().to_string(),
+        model_name,
+        duration: summary.duration_ms,
+        application_context_enabled: summary.app_name.is_some(),
+        raw_result: summary.raw.to_string(),
+        processing_time: summary.processing_ms,
+        translation_enabled: settings.translate_to_english,
+        datetime: now.format("%Y-%m-%dT%H:%M:%S").to_string(),
+        prompt_context: PromptContext {
+            application_context: ApplicationContext {
+                nouns: Vec::new(),
+                name: summary.app_name.unwrap_or_default().to_string(),
+            },
+            system_context: SystemContext {
+                time: now.format("%H:%M").to_string(),
+                language: language.clone(),
+            },
+            mode_context: ModeContext {
+                examples: Vec::new(),
+                kind: match summary.mode {
+                    Some(mode) if !mode.is_voice_only() => "custom".to_string(),
+                    _ => "voice".to_string(),
+                },
+                language,
+            },
+            user_context: serde_json::Map::new(),
+        },
+        mode_name: summary
+            .mode
+            .map(|mode| mode.name.clone())
+            .unwrap_or_else(|| "Default".to_string()),
+        ..Default::default()
     }
 }
 

@@ -1,12 +1,17 @@
 {
   "tray": {
-    "settings": "Налаштування...",
     "checkUpdates": "Перевірити оновлення...",
     "copyLastTranscript": "Скопіювати останню транскрипцію",
     "unloadModel": "Вивантажити модель",
     "model": "Модель",
     "quit": "Вийти",
-    "cancel": "Скасувати"
+    "cancel": "Скасувати",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "mode": "Mode",
+    "openApp": "Open WhisperSM",
+    "history": "History…",
+    "openRecordings": "Open Recordings Folder"
   },
   "sidebar": {
     "general": "Загальні",

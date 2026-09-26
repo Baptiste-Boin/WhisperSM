@@ -1,12 +1,17 @@
 {
   "tray": {
-    "settings": "Ustawienia...",
     "checkUpdates": "Sprawdź aktualizacje...",
     "copyLastTranscript": "Kopiuj ostatnią transkrypcję",
     "unloadModel": "Zwolnij model",
     "model": "Model",
     "quit": "Zamknij",
-    "cancel": "Anuluj"
+    "cancel": "Anuluj",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "mode": "Mode",
+    "openApp": "Open WhisperSM",
+    "history": "History…",
+    "openRecordings": "Open Recordings Folder"
   },
   "sidebar": {
     "general": "Ogólne",
