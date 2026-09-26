@@ -29,6 +29,42 @@ export const Kbd: React.FC<KbdProps> = ({
   );
 };
 
+/** Key names shown as macOS symbols, like the system keyboard-shortcut UI. */
+const MAC_KEY_SYMBOLS: Record<string, string> = {
+  option: "⌥",
+  alt: "⌥",
+  shift: "⇧",
+  command: "⌘",
+  cmd: "⌘",
+  meta: "⌘",
+  ctrl: "⌃",
+  control: "⌃",
+  enter: "⏎",
+  return: "⏎",
+  backspace: "⌫",
+  delete: "⌦",
+  tab: "⇥",
+  up: "↑",
+  down: "↓",
+  left: "←",
+  right: "→",
+};
+
+const isMacPlatform = () =>
+  typeof document !== "undefined" &&
+  document.documentElement.dataset.platform === "macos";
+
+/** Display label for one key: symbols on macOS, text elsewhere. */
+export const keyLabel = (part: string): string => {
+  if (!isMacPlatform()) return part;
+  // "Left Option" / "Right Shift" keep their side but use the symbol.
+  const match = part.match(/^(Left|Right) (.+)$/);
+  const base = (match ? match[2] : part).toLowerCase();
+  const symbol = MAC_KEY_SYMBOLS[base];
+  if (!symbol) return part;
+  return match ? `${match[1][0]}${symbol}` : symbol;
+};
+
 export const KeyCombo: React.FC<{
   combination: string;
   size?: "sm" | "md" | "lg";
@@ -38,7 +74,7 @@ export const KeyCombo: React.FC<{
   // separator keeps a literal "+" key intact.
   const parts = combination
     .split(" + ")
-    .map((p) => p.trim())
+    .map((p) => keyLabel(p.trim()))
     .filter(Boolean);
   if (parts.length === 0) return null;
   return (
