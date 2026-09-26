@@ -51,16 +51,19 @@ WhisperSM is a cross-platform desktop speech-to-text app built with Tauri 2.x (R
   - `catalog.rs` - Curated model list (Qwen 2.5, Llama 3.2) with Hugging Face URLs
   - `engine.rs` - Inference (chat templates, sampling, KV-cache reset)
   - `manager.rs` - Downloads with resume/cancel, lazy load, idle unload, Tauri events
-- `commands/` - Tauri command handlers for frontend communication (`local_llm.rs` for AI models)
-- `actions.rs` - Transcription pipeline + post-processing (cloud providers, Apple Intelligence, `local` provider)
-- `shortcut/` - Global keyboard shortcut handling
-- `settings.rs` - Application settings management (providers, saved language models, modes = `post_process_actions`)
+- `cloud_stt.rs` - Cloud voice models (OpenAI-compatible `/audio/transcriptions`, Deepgram, ElevenLabs); WAV encoded in memory, request on a dedicated thread
+- `frontmost_app.rs` - Name of the app the user dictates into (stored with history entries, feeds the "Apps used" stat)
+- `commands/` - Tauri command handlers for frontend communication (`local_llm.rs` for AI models, `modes.rs` for the active mode)
+- `actions.rs` - Transcription pipeline + post-processing (cloud providers, Apple Intelligence, `local` provider); resolves the active mode and its speech model
+- `shortcut/` - Global keyboard shortcut handling (`transcribe`, `push_to_talk`, `change_mode`, `cancel`, per-mode `ppa_<id>`)
+- `settings.rs` - Application settings management (providers with `supports_speech/supports_language`, saved language models, modes = `post_process_actions`, `active_mode_id`, theme, overlay style, vocabulary replacements)
 
 ### Frontend Structure (src/)
 
-- `App.tsx` - Shell (sidebar + page router, onboarding gate, global toasts)
-- `pages/` - Home, Modes, Models (Speech / AI tabs), History, Settings, About
-- `components/Sidebar.tsx` - Navigation + speech model status + updater
+- `App.tsx` - Shell (sidebar + header bar + page router, onboarding gate, theme, global toasts)
+- `pages/` - Home, Modes, Vocabulary, Configuration (+ AdvancedSettings), Sound, ModelsLibrary, History, About (Superwhisper-style layout)
+- `components/Sidebar.tsx` / `components/HeaderBar.tsx` - Navigation, microphone/output pickers, updater
+- `lib/constants/modelCatalog.ts` - Cloud language models with a free tier, vendor metadata, "older" speech models
 - `components/settings/` - Individual setting rows reused by the Settings page
 - `components/onboarding/OnboardingWizard.tsx` - Welcome → permissions → speech model → AI model → ready
 - `components/ui/` - Design system primitives (Button, Dropdown, SettingsGroup, Kbd, SegmentedControl…)
@@ -85,8 +88,9 @@ All user-facing strings must use i18next translations. ESLint enforces this (no 
 
 **Adding new text:**
 
-1. Add key to `src/i18n/locales/en/translation.json`
-2. Use in component: `const { t } = useTranslation(); t('key.path')`
+1. Add key to `src/i18n/locales/en/translation.json` (and the French text in `fr/translation.json`)
+2. Run `bun scripts/sync-translations.ts` so the other locales get the English fallback (CI fails on missing keys)
+3. Use in component: `const { t } = useTranslation(); t('key.path')`
 
 **File structure:**
 

@@ -17,44 +17,61 @@
   <a href="RELEASING.md">Releasing</a>
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/home.png" width="720" alt="WhisperSM home screen" />
-</p>
-
 WhisperSM is a fork of [Handy](https://github.com/cjpais/Handy) (via [Parler](https://github.com/Melvynx/Parler)) with a redesigned interface, a bundled on-device language model runtime, professional installers and one-click updates from GitHub Releases. Everything runs on your computer: audio, transcription and AI rewriting never leave it unless you explicitly add a cloud provider.
 
 ## Features
 
-- **Dictate anywhere.** One global shortcut (push-to-talk or toggle) pastes text into the active app. Number keys during a recording pick a mode.
-- **Speech models that run offline.** Whisper (Small / Medium / Turbo / Large), NVIDIA Parakeet v2/v3, Moonshine, SenseVoice, GigaAM and Canary, with GPU acceleration (Metal on macOS, Vulkan on Windows/Linux).
-- **Modes: AI post-processing.** Clean up, Email, Message, Notes and any custom prompt, rewritten by a model of your choice.
-- **On-device AI, built in.** Download a 4-bit Qwen 2.5 or Llama 3.2 model (0.5B to 3B) from inside the app. Inference runs through [candle](https://github.com/huggingface/candle): Metal on Apple Silicon, multi-threaded CPU elsewhere. No Ollama, no API key.
-- **Cloud providers, optional.** OpenAI, Anthropic, Groq, Gemini, OpenRouter, Cerebras, Z.AI, Apple Intelligence or any OpenAI-compatible endpoint with your own key.
-- **History with audio.** Replay, re-transcribe or re-process any dictation.
-- **Professional installers.** Signed DMG with drag-to-Applications layout, NSIS installer with per-user/per-machine choice and 13 languages, MSI, `.deb`, `.rpm` and AppImage.
-- **Auto-update.** Builds published on GitHub Releases are picked up by running apps and installed in one click, with signature verification.
+- **Dictate anywhere.** One global shortcut (toggle or push-to-talk) pastes text into the active app. A second shortcut switches the active mode.
+- **Voice models, local or cloud.** Offline: Whisper (Tiny to Large v3 Turbo, English-only variants), NVIDIA Parakeet, Moonshine, SenseVoice, GigaAM and Canary, with GPU acceleration (Metal on macOS, Vulkan on Windows/Linux). Cloud, with a free tier and your own key: Whisper on Groq, Mistral Voxtral, Deepgram Nova 2 / Nova 3 / Nova Medical, ElevenLabs Scribe and Cohere Transcribe.
+- **Modes.** A mode picks the voice model and, optionally, an AI model plus a prompt that rewrites the result (clean up, email, message, notes or anything you write). The active mode is used by the main shortcut; each mode can also have its own shortcut or a number key pressed while recording.
+- **Language models with a free tier, or on-device.** Gemini Flash, Mistral (Small, Medium, Large, Ministral), GPT-OSS and Qwen on Groq, GLM Flash on Z.AI, Llama 3.3 on Cerebras. Offline: Qwen 2.5, Llama 3.2, Llama 3.1 8B and Mistral 7B, downloaded from inside the app and run through [candle](https://github.com/huggingface/candle). No Ollama, no account.
+- **Models library.** Every model in one table: type, speed and accuracy, cloud or offline, favourites, one-click download or API key.
+- **Vocabulary.** Words the models should know, and replacements such as “super whisper → Superwhisper”.
+- **Home dashboard.** Words per minute, words dictated, apps used and time saved, this week or all time.
+- **History with audio.** Search, replay, re-transcribe or rewrite any dictation; each entry remembers the app it was dictated into.
+- **Configuration like a native app.** Light, dark or automatic theme; classic, mini or hidden recording window; sound effects; silence removal; clipboard and paste behaviour.
+- **Professional installers and auto-update.** Signed DMG, NSIS/MSI installers, `.deb`, `.rpm` and AppImage, updated from GitHub Releases in one click.
 - **Localized.** 20 interface languages, French and English maintained first.
 
 ## Quick start
 
 1. Download the installer for your platform from the [latest release](https://github.com/Baptiste-Boin/WhisperSM/releases/latest).
-2. Install and launch WhisperSM. The onboarding wizard asks for microphone (and, on macOS, accessibility) permission, downloads a speech model and optionally an on-device AI model.
+2. Install and launch WhisperSM. The onboarding wizard asks for microphone (and, on macOS, accessibility) permission, downloads a voice model and optionally an on-device AI model.
 3. Put the cursor in any text field, hold the shortcut (`⌥ Space` on macOS, `Ctrl Space` on Windows/Linux), speak, release.
 
-## Modes (AI post-processing)
+## Modes
 
-A mode is a prompt plus the model that runs it. WhisperSM ships with four:
+A mode is a voice model plus, optionally, an AI model and a prompt. WhisperSM ships with five:
 
-| Mode     | Key | What it does                                        |
-| -------- | --- | --------------------------------------------------- |
-| Clean up | 1   | Fixes punctuation, numbers, removes filler words    |
-| Email    | 2   | Turns the dictation into a polite, structured email |
-| Message  | 3   | Short, casual chat message                          |
-| Notes    | 4   | Bullet-point notes                                  |
+| Mode          | Key | What it does                                        |
+| ------------- | --- | --------------------------------------------------- |
+| Voice to text | –   | Plain transcription, nothing rewritten (built in)   |
+| Clean up      | 1   | Fixes punctuation, numbers, removes filler words    |
+| Email         | 2   | Turns the dictation into a polite, structured email |
+| Message       | 3   | Short, casual chat message                          |
+| Notes         | 4   | Bullet-point notes                                  |
 
-Trigger a mode by pressing its number key while recording, by assigning it a global shortcut, or use the _Dictate with AI mode_ shortcut (`⌥ ⇧ Space` / `Ctrl Shift Space`) which applies the first mode. Modes can also be applied afterwards from the History page.
+The **active mode** (green dot in Modes) is what the main shortcut uses; `⌥ ⇧ K` (`Ctrl Shift K`) cycles to the next one. Press a mode's number key while recording to apply it once, or give it its own global shortcut. Modes can also be applied afterwards from History.
 
-### On-device models
+## Models
+
+Everything lives in **Models library**. Only models that are free to use are listed: either they run on your computer, or the provider has a free tier and you paste your own key (Google AI Studio, Mistral, Groq, Z.AI, Cerebras, Deepgram, ElevenLabs, Cohere).
+
+### Voice models (offline)
+
+| Model                                 | Size       | Languages       |
+| ------------------------------------- | ---------- | --------------- |
+| Whisper Tiny / Base / Small           | 75–500 MB  | 99 (or English) |
+| Whisper Medium                        | 0.5 GB     | 99 (or English) |
+| Whisper Large v3 / v3 Turbo           | 1.1–1.6 GB | 99              |
+| Parakeet / Parakeet Multilanguage     | ~480 MB    | English / 25 EU |
+| Moonshine, SenseVoice, GigaAM, Canary | 30–700 MB  | see library     |
+
+### Voice models (cloud, free tier)
+
+Whisper Large v3 Turbo and v3 (Groq), Voxtral Mini Transcribe (Mistral), Nova 2 / Nova 3 / Nova Medical (Deepgram), Scribe (ElevenLabs), Cohere Transcribe (Cohere). Audio is sent to the provider only when such a model is selected.
+
+### On-device language models
 
 | Model             | Params | Download | RAM   | Notes                               |
 | ----------------- | ------ | -------- | ----- | ----------------------------------- |
@@ -63,8 +80,10 @@ Trigger a mode by pressing its number key while recording, by assigning it a glo
 | Qwen 2.5 Pro      | 3B     | 2.0 GB   | 16 GB | Best rewrites                       |
 | Llama 3.2 Light   | 1B     | 787 MB   | 8 GB  | English-first                       |
 | Llama 3.2 Pro     | 3B     | 1.9 GB   | 16 GB | English-first                       |
+| Llama 3.1 8B      | 8B     | 4.7 GB   | 16 GB | Multilingual, best quality          |
+| Mistral 7B v0.3   | 7B     | 4.2 GB   | 16 GB | Great for French and English        |
 
-Models are fetched once from Hugging Face into the app data folder (`llm/<model>/`). They load lazily on first use and unload after the idle timeout configured in Settings › App.
+Models are fetched once from Hugging Face into the app data folder (`llm/<model>/`). They load lazily on first use and unload after the idle timeout configured in Advanced settings.
 
 ## Development
 
@@ -124,11 +143,11 @@ On Linux/Wayland you can also send `SIGUSR2` (toggle) or `SIGUSR1` (toggle with 
 - Audio is captured locally and transcribed by a model on your machine.
 - On-device AI models run inside the app. Nothing is sent anywhere.
 - Cloud providers are used only for modes you explicitly point at them. API keys are stored in the local settings file.
-- Update checks fetch a small JSON manifest from GitHub; they can be disabled in Settings › App.
+- Update checks fetch a small JSON manifest from GitHub; they can be disabled in Configuration.
 
 ## Credits
 
-WhisperSM is built on [Handy](https://github.com/cjpais/Handy) by CJ Pais and the [Parler](https://github.com/Melvynx/Parler) fork by Melvynx, and uses [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [transcribe-rs](https://github.com/cjpais/transcribe-rs), [candle](https://github.com/huggingface/candle), [Tauri](https://tauri.app) and the open-weight [Qwen 2.5](https://huggingface.co/Qwen) and [Llama 3.2](https://huggingface.co/meta-llama) models.
+WhisperSM is built on [Handy](https://github.com/cjpais/Handy) by CJ Pais and the [Parler](https://github.com/Melvynx/Parler) fork by Melvynx, and uses [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [transcribe-rs](https://github.com/cjpais/transcribe-rs), [candle](https://github.com/huggingface/candle), [Tauri](https://tauri.app) and the open-weight [Qwen 2.5](https://huggingface.co/Qwen), [Llama](https://huggingface.co/meta-llama) and [Mistral](https://huggingface.co/mistralai) models. The interface is modelled on [Superwhisper](https://superwhisper.com).
 
 ## License
 
