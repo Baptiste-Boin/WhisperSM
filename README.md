@@ -22,9 +22,9 @@ WhisperSM is a fork of [Handy](https://github.com/cjpais/Handy) (via [Parler](ht
 ## Features
 
 - **Dictate anywhere.** One global shortcut (toggle or push-to-talk) pastes text into the active app. A second shortcut switches the active mode.
-- **Voice models, local or cloud.** Offline: Whisper (Tiny to Large v3 Turbo, English-only variants), NVIDIA Parakeet, Moonshine, SenseVoice, GigaAM and Canary, with GPU acceleration (Metal on macOS, Vulkan on Windows/Linux). Cloud, with a free tier and your own key: Whisper on Groq, Mistral Voxtral, Deepgram Nova 2 / Nova 3 / Nova Medical, ElevenLabs Scribe and Cohere Transcribe.
-- **Modes.** A mode picks the voice model and, optionally, an AI model plus a prompt that rewrites the result (clean up, email, message, notes or anything you write). The active mode is used by the main shortcut; each mode can also have its own shortcut or a number key pressed while recording.
-- **Language models with a free tier, or on-device.** Gemini Flash, Mistral (Small, Medium, Large, Ministral), GPT-OSS and Qwen on Groq, GLM Flash on Z.AI, Llama 3.3 on Cerebras. Offline: Qwen 2.5, Llama 3.2, Llama 3.1 8B and Mistral 7B, downloaded from inside the app and run through [candle](https://github.com/huggingface/candle). No Ollama, no account.
+- **Voice models, local or cloud.** Offline: Whisper (Tiny to Large, Large v3, Large v3 Turbo and its Chinese build, English-only variants), NVIDIA Parakeet, Moonshine, SenseVoice, GigaAM and Canary, with GPU acceleration (Metal on macOS, Vulkan on Windows/Linux). Cloud, with a free tier and your own key: Whisper on Groq, Mistral Voxtral, Deepgram Nova 2 / Nova 3 / Nova Medical, ElevenLabs Scribe and Cohere Transcribe.
+- **Modes.** Built from the same presets as Superwhisper (Super, Voice to text, Message, Mail, Note, Meeting, Custom) with a Casual ↔ Formal tone slider, a language and voice model per mode, an AI model, context (frontmost app, date, copied text) and auto-activation when you dictate in chosen apps. The active mode is used by the main shortcut; each mode can also have its own shortcut or a number key pressed while recording.
+- **Language models, cloud or on-device.** Claude (Sonnet 5, Sonnet 4.6, Sonnet 4.5, Haiku 4.5), GPT-5.6 Luna, GPT-5.4 mini/nano, GPT-5.2, GPT-5.1, GPT-5 (mini, nano), Gemini 3.7 Flash, 3.5 Flash Lite and 3.0 Flash, Llama 3.1 8B on Groq, plus free-tier Mistral, GPT-OSS and Qwen on Groq, GLM Flash on Z.AI and Llama 3.3 on Cerebras, and the older models (GPT-4.1, GPT-4o, Sonnet 4, Gemini 3.1 Flash Lite, Grok 4.1 Fast…). Cloud models use your own API key. Offline: Qwen 2.5, Llama 3.2, Llama 3.1 8B and Mistral 7B, downloaded from inside the app and run through [candle](https://github.com/huggingface/candle). No Ollama, no account.
 - **Models library.** Every model in one table: type, speed and accuracy, cloud or offline, favourites, one-click download or API key.
 - **Vocabulary.** Words the models should know, and replacements such as “super whisper → Superwhisper”.
 - **Home dashboard.** Words per minute, words dictated, apps used and time saved, this week or all time.
@@ -41,7 +41,7 @@ WhisperSM is a fork of [Handy](https://github.com/cjpais/Handy) (via [Parler](ht
 
 ## Modes
 
-A mode is a voice model plus, optionally, an AI model and a prompt. WhisperSM ships with five:
+A mode is a voice model plus, optionally, an AI model and its instructions. Create one with **+ Create mode** and pick a preset: **Super** (adapts the text to the app you dictate into), **Voice to text**, **Message**, **Mail** and **Note** (with a tone slider), **Meeting** (minutes and action items) or **Custom** (your own instructions, with optional app and clipboard context). **Activate for apps** switches to the mode automatically when a recording starts in one of the listed apps. Fresh installs come with:
 
 | Mode          | Key | What it does                                        |
 | ------------- | --- | --------------------------------------------------- |
@@ -55,7 +55,7 @@ The **active mode** (green dot in Modes) is what the main shortcut uses; `⌥ �
 
 ## Models
 
-Everything lives in **Models library**. Only models that are free to use are listed: either they run on your computer, or the provider has a free tier and you paste your own key (Google AI Studio, Mistral, Groq, Z.AI, Cerebras, Deepgram, ElevenLabs, Cohere).
+Everything lives in **Models library**, with the same voice and language models as Superwhisper's library (except its own S1 models). Local models run on your computer; cloud models use your own API key (Anthropic, OpenAI, Google AI Studio, Groq, xAI, Mistral, Z.AI, Cerebras, Deepgram, ElevenLabs, Cohere), several with a free tier.
 
 ### Voice models (offline)
 
@@ -63,7 +63,8 @@ Everything lives in **Models library**. Only models that are free to use are lis
 | ------------------------------------- | ---------- | --------------- |
 | Whisper Tiny / Base / Small           | 75–500 MB  | 99 (or English) |
 | Whisper Medium                        | 0.5 GB     | 99 (or English) |
-| Whisper Large v3 / v3 Turbo           | 1.1–1.6 GB | 99              |
+| Whisper Large / Large v3 / v3 Turbo   | 1.1–1.6 GB | 99              |
+| Whisper Large v3 Turbo (Chinese)      | 1.6 GB     | Chinese         |
 | Parakeet / Parakeet Multilanguage     | ~480 MB    | English / 25 EU |
 | Moonshine, SenseVoice, GigaAM, Canary | 30–700 MB  | see library     |
 

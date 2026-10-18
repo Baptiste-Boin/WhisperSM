@@ -56,14 +56,17 @@ WhisperSM is a cross-platform desktop speech-to-text app built with Tauri 2.x (R
 - `commands/` - Tauri command handlers for frontend communication (`local_llm.rs` for AI models, `modes.rs` for the active mode)
 - `actions.rs` - Transcription pipeline + post-processing (cloud providers, Apple Intelligence, `local` provider); resolves the active mode and its speech model
 - `shortcut/` - Global keyboard shortcut handling (`transcribe`, `push_to_talk`, `change_mode`, `cancel`, per-mode `ppa_<id>`)
-- `settings.rs` - Application settings management (providers with `supports_speech/supports_language`, saved language models, modes = `post_process_actions`, `active_mode_id`, theme, overlay style, vocabulary replacements)
+- `settings.rs` - Application settings management (providers with `supports_speech/supports_language`, saved language models, modes = `post_process_actions` with preset/tone/language/`activate_apps`/context flags, `active_mode_id`, theme, overlay style, vocabulary replacements)
 
 ### Frontend Structure (src/)
 
 - `App.tsx` - Shell (sidebar + header bar + page router, onboarding gate, theme, global toasts)
 - `pages/` - Home, Modes, Vocabulary, Configuration (+ AdvancedSettings), Sound, ModelsLibrary, History, About (Superwhisper-style layout)
+- `components/modes/` - Full-page mode editor (presets, tone, language, model pickers, auto-activation apps)
+- `lib/constants/modePresets.ts` - Mode presets (Super, Voice to text, Message, Mail, Note, Meeting, Custom) and the prompts they generate
+- `stores/headerStore.ts` - Lets a page replace the window's top bar (`usePageHeader`: search fields, editor titles)
 - `components/Sidebar.tsx` / `components/HeaderBar.tsx` - Navigation, microphone/output pickers, updater
-- `lib/constants/modelCatalog.ts` - Cloud language models with a free tier, vendor metadata, "older" speech models
+- `lib/constants/modelCatalog.ts` - Cloud language models (Superwhisper's list + free-tier providers, `legacy` ones under "Older models"), vendor metadata, "older" speech models
 - `components/settings/` - Individual setting rows reused by the Settings page
 - `components/onboarding/OnboardingWizard.tsx` - Welcome → permissions → speech model → AI model → ready
 - `components/ui/` - Design system primitives (Button, Dropdown, SettingsGroup, Kbd, SegmentedControl…)
