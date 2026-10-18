@@ -82,3 +82,78 @@ pub fn set_active_mode(app: AppHandle, id: String) -> Result<PostProcessAction, 
 pub fn cycle_active_mode(app: AppHandle) -> Result<PostProcessAction, String> {
     cycle_active_mode_internal(&app)
 }
+
+/// Per-mode options edited in the mode editor (everything except the name,
+/// instructions, models and shortcuts, which `update_post_process_action`
+/// handles).
+#[derive(Debug, Clone, serde::Deserialize, specta::Type)]
+pub struct ModeOptions {
+    pub preset: Option<String>,
+    pub tone: Option<u8>,
+    pub language: Option<String>,
+    pub activate_apps: Vec<String>,
+    pub context_application: bool,
+    pub context_clipboard: bool,
+}
+
+const PRESETS: [&str; 7] = [
+    "super", "voice", "message", "mail", "note", "meeting", "custom",
+];
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_mode_options(
+    app: AppHandle,
+    id: String,
+    options: ModeOptions,
+) -> Result<PostProcessAction, String> {
+    if let Some(preset) = options.preset.as_deref() {
+        if !PRESETS.contains(&preset) {
+            return Err(format!("Unknown preset '{}'", preset));
+        }
+    }
+    if options.tone.is_some_and(|tone| tone > 4) {
+        return Err("Tone must be between 0 and 4".to_string());
+    }
+
+    let mut settings = get_settings(&app);
+    let mode = settings
+        .post_process_actions
+        .iter_mut()
+        .find(|action| action.id == id)
+        .ok_or_else(|| format!("Mode '{}' not found", id))?;
+
+    mode.preset = options.preset;
+    mode.tone = options.tone;
+    mode.language = options
+        .language
+        .map(|language| language.trim().to_string())
+        .filter(|language| !language.is_empty());
+    let mut apps: Vec<String> = Vec::new();
+    for app_name in options.activate_apps {
+        let app_name = app_name.trim().to_string();
+        if !app_name.is_empty() && !apps.iter().any(|a| a.eq_ignore_ascii_case(&app_name)) {
+            apps.push(app_name);
+        }
+    }
+    mode.activate_apps = apps;
+    mode.context_application = options.context_application;
+    mode.context_clipboard = options.context_clipboard;
+
+    let updated = mode.clone();
+    write_settings(&app, settings);
+    Ok(updated)
+}
+
+/// Applications seen in recent dictations, most recent first, to suggest in
+/// a mode's "Activate for apps" picker.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_recent_apps(
+    history: tauri::State<'_, std::sync::Arc<crate::managers::history::HistoryManager>>,
+) -> Result<Vec<String>, String> {
+    history
+        .recent_app_names(30)
+        .await
+        .map_err(|e| e.to_string())
+}

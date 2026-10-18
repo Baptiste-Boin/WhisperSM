@@ -162,7 +162,8 @@
           "title": "100% private",
           "text": "No account, no cloud. Your audio and text stay on this machine."
         }
-      }
+      },
+      "estimate": "Estimated time: less than 2 minutes"
     },
     "speech": {
       "title": "Choose a speech model",
@@ -777,7 +778,9 @@
     "processing": "Обработка...",
     "cancelConfirm": "Esc again to cancel",
     "idle": "Ready",
-    "mode": "Mode"
+    "mode": "Mode",
+    "stop": "Stop",
+    "cancel": "Cancel"
   },
   "home": {
     "hero": {
@@ -866,6 +869,14 @@
       "viewAll": "View all changes"
     },
     "changelog": {
+      "modeEditor": {
+        "title": "New mode editor",
+        "description": "Presets (Super, Message, Mail, Note, Meeting, Custom) with a tone slider, a language per mode, context and auto-activation for apps."
+      },
+      "allModels": {
+        "title": "Every model",
+        "description": "Claude Sonnet 5, GPT-5.6 Luna, Gemini 3.7 Flash, Llama 3.1 8B and the older ones, plus Whisper Large and Large v3 Turbo (Chinese)."
+      },
       "modelsLibrary": {
         "title": "Models library",
         "description": "Every voice and language model in one place: free cloud providers, on-device models, favourites and API keys."
@@ -949,6 +960,101 @@
       "appDefaultModel": "Default voice model",
       "noAiModel": "No AI model selected",
       "quickKey": "Press {{key}} while recording"
+    },
+    "picker": {
+      "favorites": "Favorites",
+      "popular": "Popular",
+      "more": "More models",
+      "older": "Older models"
+    },
+    "presets": {
+      "recommended": "Recommended",
+      "super": {
+        "name": "Super"
+      },
+      "voice": {
+        "name": "Voice to text"
+      },
+      "message": {
+        "name": "Message"
+      },
+      "mail": {
+        "name": "Mail"
+      },
+      "note": {
+        "name": "Note"
+      },
+      "meeting": {
+        "name": "Meeting"
+      },
+      "custom": {
+        "name": "Custom"
+      }
+    },
+    "menu": {
+      "edit": "Edit",
+      "activate": "Set as active mode",
+      "duplicate": "Duplicate",
+      "copyName": "{{name}} copy"
+    },
+    "editor": {
+      "newTitle": "New Mode",
+      "rename": "Click to rename",
+      "preset": {
+        "label": "Preset",
+        "placeholder": "Select a preset",
+        "info": "The preset decides what the AI does with your dictation: adapt it to the app (Super), clean up a message, write an email, a note or meeting minutes, or follow your own instructions (Custom). Voice to text only transcribes."
+      },
+      "tone": {
+        "label": "Tone",
+        "casual": "Casual",
+        "formal": "Formal",
+        "info": "How formal the cleaned-up text should sound."
+      },
+      "instructions": {
+        "title": "Custom instructions",
+        "description": "Adjust the transcript to your style using natural language.",
+        "required": "Write some instructions for this mode."
+      },
+      "context": {
+        "label": "Context",
+        "application": "Application",
+        "clipboard": "Copied text",
+        "info": "Extra context sent to the language model: the app you dictate into with the date and your user name, and the text on the clipboard when the recording starts."
+      },
+      "language": {
+        "label": "Language",
+        "appDefault": "App default",
+        "automatic": "Automatic"
+      },
+      "voiceModel": {
+        "label": "Voice Model",
+        "placeholder": "Choose a voice model",
+        "info": "The model that turns your speech into text. Browse, download and remove models in the Models library."
+      },
+      "languageModel": {
+        "label": "Language Model",
+        "placeholder": "Choose a model",
+        "info": "The AI model that formats your transcription. Cloud models use your own API key."
+      },
+      "apps": {
+        "label": "Activate for apps",
+        "add": "Add apps and sites",
+        "placeholder": "App name, e.g. Slack",
+        "recent": "Recently used",
+        "hint": "When you start a recording in one of these apps, this mode becomes the active mode.",
+        "remove": "Remove {{app}}",
+        "info": "Switch to this mode automatically when you dictate in these apps."
+      },
+      "shortcut": {
+        "label": "Keyboard shortcut",
+        "description": "Start a recording in this mode"
+      },
+      "advanced": "Advanced settings",
+      "quickKeyInfo": "While recording with any shortcut, press this number to process the dictation with this mode.",
+      "makeActive": "Make active",
+      "delete": "Delete this mode",
+      "needsKey": "{{model}} needs an API key. Add it in the Models library."
     }
   },
   "models": {
@@ -1033,7 +1139,8 @@
     "microphone": {
       "title": "Microphone",
       "default": "{{name}} (Default)",
-      "systemDefault": "System microphone"
+      "systemDefault": "System microphone",
+      "useSystemDefault": "Use system default"
     },
     "output": {
       "title": "Output device",

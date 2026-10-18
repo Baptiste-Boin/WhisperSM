@@ -5,7 +5,13 @@ import "./RecordingOverlay.css";
 import { commands } from "@/bindings";
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
-import { getActionIcon } from "@/lib/constants/actionIcons";
+import {
+  FILLED_ACTION_ICONS,
+  getActionIcon,
+} from "@/lib/constants/actionIcons";
+import { formatKeyCombination } from "@/lib/utils/keyboard";
+import { useOsType } from "@/hooks/useOsType";
+import { keyLabel } from "@/components/ui/Kbd";
 
 type OverlayState =
   | "recording"
@@ -19,7 +25,13 @@ interface ShowOverlayPayload {
   state: OverlayState;
   style: OverlayStyle;
   mode_name: string | null;
+  mode_icon?: string | null;
+  stop_shortcut?: string | null;
+  cancel_shortcut?: string | null;
 }
+
+/** Number of bars in the classic window's scrolling waveform. */
+const WAVE_BARS = 72;
 
 interface ActionInfo {
   key: number | null;
@@ -183,12 +195,78 @@ const AudioBars: React.FC = () => {
   );
 };
 
+/**
+ * Scrolling waveform of the classic window: each mic level frame pushes one
+ * bar on the right; silent bars are drawn as dots.
+ */
+const Waveform: React.FC<{ active: boolean }> = ({ active }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<number[]>(Array(WAVE_BARS).fill(0));
+
+  useEffect(() => {
+    if (!active) return;
+    let unlisten: (() => void) | null = null;
+    let smoothed = 0;
+    const render = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const bars = el.children;
+      const history = historyRef.current;
+      for (let i = 0; i < bars.length; i++) {
+        const v = history[i] ?? 0;
+        const bar = bars[i] as HTMLElement;
+        bar.style.height = `${Math.max(2, Math.min(56, 2 + Math.pow(v, 0.7) * 54))}px`;
+        bar.style.opacity = v < 0.04 ? "0.45" : `${0.6 + Math.min(0.4, v)}`;
+      }
+    };
+    const setup = async () => {
+      unlisten = await listen<number[]>("mic-level", (event) => {
+        const levels = event.payload;
+        const peak = levels.length ? Math.max(...levels) : 0;
+        smoothed = smoothed * 0.4 + peak * 0.6;
+        const history = historyRef.current;
+        history.shift();
+        history.push(Math.min(1, smoothed * 1.3));
+        render();
+      });
+    };
+    historyRef.current = Array(WAVE_BARS).fill(0);
+    render();
+    setup();
+    return () => {
+      unlisten?.();
+    };
+  }, [active]);
+
+  return (
+    <div className="classic-wave" ref={containerRef} aria-hidden="true">
+      {Array.from({ length: WAVE_BARS }, (_, i) => (
+        <span key={i} className="classic-wave-bar" />
+      ))}
+    </div>
+  );
+};
+
+const Keycaps: React.FC<{ combination: string }> = ({ combination }) => (
+  <span className="classic-keys">
+    {combination.split(" + ").map((part, i) => (
+      <span key={`${part}-${i}`} className="classic-key">
+        {keyLabel(part.trim())}
+      </span>
+    ))}
+  </span>
+);
+
 const RecordingOverlay: React.FC = () => {
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
   const [state, setState] = useState<OverlayState>("recording");
   const [style, setStyle] = useState<OverlayStyle>("classic");
   const [modeName, setModeName] = useState<string | null>(null);
+  const [modeIcon, setModeIcon] = useState<string | null>(null);
+  const [stopShortcut, setStopShortcut] = useState<string | null>(null);
+  const [cancelShortcut, setCancelShortcut] = useState<string | null>(null);
+  const osType = useOsType();
   const [timerStart, setTimerStart] = useState(0);
   const [selectedAction, setSelectedAction] = useState<ActionInfo | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
@@ -225,6 +303,11 @@ const RecordingOverlay: React.FC = () => {
           setState(payload.state);
           setStyle(payload.style ?? "classic");
           setModeName(payload.mode_name ?? null);
+          if (typeof event.payload !== "string") {
+            setModeIcon(event.payload.mode_icon ?? null);
+            setStopShortcut(event.payload.stop_shortcut ?? null);
+            setCancelShortcut(event.payload.cancel_shortcut ?? null);
+          }
           setIsVisible(true);
           setIsPaused(false);
           if (payload.state === "recording") {
@@ -310,6 +393,82 @@ const RecordingOverlay: React.FC = () => {
       }
     };
   }, []);
+
+  const isBusy =
+    state === "recording" || state === "transcribing" || state === "processing";
+
+  if (style === "classic" && isBusy) {
+    const shownIcon = selectedAction?.icon ?? modeIcon;
+    const ShownIcon = getActionIcon(shownIcon ?? "mic");
+    const filled = shownIcon ? FILLED_ACTION_ICONS.has(shownIcon) : false;
+    const shownName = selectedAction?.name ?? modeName ?? t("overlay.mode");
+    const fmt = (raw: string | null) =>
+      raw ? formatKeyCombination(raw, osType) : "";
+    return (
+      <div
+        dir={direction}
+        className={`classic-window state-${state} ${isVisible ? "is-visible" : "is-hidden"}`}
+      >
+        <div className="classic-top">
+          {state === "recording" ? (
+            <Waveform active={state === "recording" && !isPaused} />
+          ) : (
+            <div className="classic-status">
+              {state === "transcribing"
+                ? t("overlay.transcribing")
+                : t("overlay.processing")}
+            </div>
+          )}
+        </div>
+        <div className="classic-bar">
+          <span className="classic-mode" title={shownName}>
+            <ShownIcon
+              width={17}
+              height={17}
+              strokeWidth={filled ? 1.4 : 2}
+              fill={filled ? "currentColor" : "none"}
+            />
+            <span className="classic-mode-name">{shownName}</span>
+            {selectedAction?.key != null && (
+              <span className="classic-key">{selectedAction.key}</span>
+            )}
+          </span>
+          {state === "recording" && (
+            <span className="classic-actions">
+              {cancelPending ? (
+                <span className="classic-label">
+                  {t("overlay.cancelConfirm")}
+                </span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="classic-action"
+                    onClick={() => commands.stopRecording()}
+                  >
+                    <span className="classic-label">{t("overlay.stop")}</span>
+                    {stopShortcut && (
+                      <Keycaps combination={fmt(stopShortcut)} />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="classic-action"
+                    onClick={handleCancel}
+                  >
+                    <span className="classic-label">{t("overlay.cancel")}</span>
+                    {cancelShortcut && (
+                      <Keycaps combination={fmt(cancelShortcut)} />
+                    )}
+                  </button>
+                </>
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -14,14 +14,11 @@ import {
 } from "tauri-plugin-macos-permissions-api";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
-  ArrowRight,
+  PersonStanding,
   Check,
   Cpu,
-  Keyboard,
   Loader2,
   Mic,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { commands, type LocalLlmModelInfo, type ModelInfo } from "@/bindings";
@@ -36,7 +33,6 @@ import { useLocalLlmStore } from "@/stores/localLlmStore";
 import { useOsType } from "@/hooks/useOsType";
 import { formatKeyCombination } from "@/lib/utils/keyboard";
 import { formatModelSize } from "@/lib/utils/format";
-import WhisperSMLogo, { WhisperSMMark } from "../icons/WhisperSMLogo";
 import { Badge, Button, KeyCombo } from "@/components/ui";
 import ModelCard, { type ModelCardStatus } from "./ModelCard";
 
@@ -52,25 +48,25 @@ interface OnboardingWizardProps {
 /* Layout                                                              */
 /* ------------------------------------------------------------------ */
 
-const StepDots: React.FC<{ steps: Step[]; current: Step }> = ({
+/** Thin glowing progress bar at the top, like the reference app. */
+const StepProgress: React.FC<{ steps: Step[]; current: Step }> = ({
   steps,
   current,
 }) => {
-  const index = steps.indexOf(current);
+  const index = Math.max(0, steps.indexOf(current));
+  const ratio = (index + 1) / Math.max(1, steps.length);
   return (
-    <div className="flex items-center gap-1.5" aria-hidden="true">
-      {steps.map((step, i) => (
-        <span
-          key={step}
-          className={`h-1.5 rounded-full transition-all duration-300 ${
-            i === index
-              ? "w-6 wsm-gradient"
-              : i < index
-                ? "w-1.5 bg-accent/60"
-                : "w-1.5 bg-surface-3"
-          }`}
-        />
-      ))}
+    <div
+      className="h-[6px] w-full rounded-full bg-black/25 overflow-hidden"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={steps.length}
+      aria-valuenow={index + 1}
+    >
+      <div
+        className="h-full rounded-full bg-[#64c3ff] shadow-[0_0_10px_rgba(100,195,255,0.8)] transition-[width] duration-500"
+        style={{ width: `${Math.max(8, ratio * 100)}%` }}
+      />
     </div>
   );
 };
@@ -80,23 +76,27 @@ const Frame: React.FC<{
   current: Step;
   children: React.ReactNode;
   footer?: React.ReactNode;
-}> = ({ steps, current, children, footer }) => (
-  <div className="h-screen w-screen flex flex-col bg-background select-none">
-    <div className="flex items-center justify-between px-8 pt-6">
-      <WhisperSMLogo size={24} />
-      <StepDots steps={steps} current={current} />
+  /** The welcome screen: black backdrop with light streaks, no progress. */
+  hero?: boolean;
+}> = ({ steps, current, children, footer, hero = false }) => (
+  <div
+    className={`h-screen w-screen flex flex-col select-none ${hero ? "wsm-onboarding-hero" : "bg-background"}`}
+    data-tauri-drag-region
+  >
+    <div className="px-10 pt-12" data-tauri-drag-region>
+      {!hero && <StepProgress steps={steps} current={current} />}
     </div>
     <div className="flex-1 overflow-y-auto">
       <div
-        className="max-w-[640px] mx-auto px-8 py-8 wsm-fade-in"
+        className={`max-w-[560px] mx-auto px-10 wsm-fade-in ${hero ? "h-full flex flex-col justify-center" : "pt-14 pb-6"}`}
         key={current}
       >
         {children}
       </div>
     </div>
     {footer && (
-      <div className="border-t border-border bg-surface/60 backdrop-blur px-8 py-4">
-        <div className="max-w-[640px] mx-auto flex items-center justify-between gap-3">
+      <div className="px-10 pb-8 pt-3">
+        <div className="max-w-[560px] mx-auto flex flex-col items-stretch gap-3">
           {footer}
         </div>
       </div>
@@ -109,17 +109,13 @@ const StepTitle: React.FC<{
   title: string;
   description?: string;
 }> = ({ eyebrow, title, description }) => (
-  <div className="mb-6">
-    {eyebrow && (
-      <p className="text-xs font-semibold uppercase tracking-wide text-accent mb-1">
-        {eyebrow}
-      </p>
-    )}
-    <h1 className="text-[26px] font-semibold tracking-tight leading-tight">
+  <div className="mb-10">
+    {eyebrow && <p className="sr-only">{eyebrow}</p>}
+    <h1 className="text-[30px] font-bold tracking-tight leading-tight">
       {title}
     </h1>
     {description && (
-      <p className="text-sm text-text-muted mt-2 leading-relaxed">
+      <p className="text-[15px] text-[#64c3ff] mt-2 leading-relaxed">
         {description}
       </p>
     )}
@@ -331,22 +327,22 @@ const PermissionCard: React.FC<{
 }> = ({ icon, title, description, status, buttonLabel, onGrant }) => {
   const { t } = useTranslation();
   return (
-    <div className="wsm-card px-4 py-4 flex items-center gap-4">
-      <div className="w-11 h-11 rounded-xl bg-accent-soft text-accent flex items-center justify-center shrink-0">
+    <div className="py-6 flex items-center gap-5 border-b border-border last:border-b-0">
+      <div className="w-10 flex items-center justify-center shrink-0 text-[#64c3ff] [&_svg]:w-7 [&_svg]:h-7">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+        <h3 className="text-[15px] font-semibold">{title}</h3>
+        <p className="text-[14px] text-text-muted mt-1 leading-snug">
           {description}
         </p>
       </div>
       <div className="shrink-0">
         {status === "granted" ? (
-          <Badge variant="success">
-            <Check className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 text-[15px] text-[#64c3ff]">
+            <Check className="w-4 h-4" />
             {t("onboarding.permissions.granted")}
-          </Badge>
+          </span>
         ) : status === "waiting" || status === "checking" ? (
           <span className="inline-flex items-center gap-1.5 text-xs text-text-muted">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -487,46 +483,17 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   /* ---------------------------------------------------------------- */
 
   const renderWelcome = () => (
-    <>
-      <div className="flex flex-col items-center text-center mb-8">
-        <WhisperSMMark size={96} className="drop-shadow-xl mb-6" />
-        <h1 className="text-[30px] font-semibold tracking-tight">
-          {t("onboarding.welcome.title")}
-        </h1>
-        <p className="text-sm text-text-muted mt-3 leading-relaxed max-w-md">
-          {t("onboarding.welcome.description")}
-        </p>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          {
-            icon: <Mic className="w-5 h-5" />,
-            title: t("onboarding.welcome.features.speech.title"),
-            text: t("onboarding.welcome.features.speech.text"),
-          },
-          {
-            icon: <Sparkles className="w-5 h-5" />,
-            title: t("onboarding.welcome.features.ai.title"),
-            text: t("onboarding.welcome.features.ai.text"),
-          },
-          {
-            icon: <ShieldCheck className="w-5 h-5" />,
-            title: t("onboarding.welcome.features.privacy.title"),
-            text: t("onboarding.welcome.features.privacy.text"),
-          },
-        ].map((feature) => (
-          <div key={feature.title} className="wsm-card px-4 py-4">
-            <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent flex items-center justify-center mb-3">
-              {feature.icon}
-            </div>
-            <p className="text-sm font-semibold">{feature.title}</p>
-            <p className="text-xs text-text-muted mt-1 leading-relaxed">
-              {feature.text}
-            </p>
-          </div>
-        ))}
-      </div>
-    </>
+    <div className="flex flex-col items-center text-center">
+      <h1 className="text-[30px] font-bold tracking-tight text-white">
+        {t("onboarding.welcome.title")}
+      </h1>
+      <p className="text-[15px] text-white/60 mt-5 leading-relaxed max-w-[380px]">
+        {t("onboarding.welcome.description")}
+      </p>
+      <p className="text-[14px] text-white/35 mt-6">
+        {t("onboarding.welcome.estimate")}
+      </p>
+    </div>
   );
 
   const renderPermissions = () => (
@@ -541,7 +508,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           <Loader2 className="w-6 h-6 animate-spin text-accent" />
         </div>
       ) : (
-        <div className="space-y-3">
+        <div>
           {(perms.isMacOS || perms.isWindows) && (
             <PermissionCard
               icon={<Mic className="w-5 h-5" />}
@@ -558,7 +525,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           )}
           {perms.isMacOS && (
             <PermissionCard
-              icon={<Keyboard className="w-5 h-5" />}
+              icon={<PersonStanding className="w-5 h-5" />}
               title={t("onboarding.permissions.accessibility.title")}
               description={t(
                 "onboarding.permissions.accessibility.description",
@@ -790,35 +757,44 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
   const footer = (
     <>
-      <div>
+      <button
+        type="button"
+        onClick={goNext}
+        disabled={!canContinue}
+        className="w-full h-[52px] rounded-[14px] bg-[#64c3ff] text-black text-[17px] font-medium hover:bg-[#7dcdff] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {nextLabel}
+      </button>
+      <div className="flex items-center justify-center gap-6 min-h-5">
         {stepIndex > 0 && step !== "ready" && (
-          <Button variant="ghost" size="md" onClick={goBack}>
-            <ArrowLeft className="w-4 h-4" />
+          <button
+            type="button"
+            onClick={goBack}
+            className="text-[14px] text-text-muted hover:text-text transition-colors"
+          >
             {t("onboarding.actions.back")}
-          </Button>
+          </button>
         )}
-      </div>
-      <div className="flex items-center gap-2">
         {step === "permissions" && !perms.allGranted && (
-          <Button variant="ghost" size="md" onClick={goNext}>
+          <button
+            type="button"
+            onClick={goNext}
+            className="text-[14px] text-text-muted hover:text-text transition-colors"
+          >
             {t("onboarding.permissions.skip")}
-          </Button>
+          </button>
         )}
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={goNext}
-          disabled={!canContinue}
-        >
-          {nextLabel}
-          {step !== "ready" && <ArrowRight className="w-4 h-4" />}
-        </Button>
       </div>
     </>
   );
 
   return (
-    <Frame steps={steps} current={step} footer={footer}>
+    <Frame
+      steps={steps}
+      current={step}
+      footer={footer}
+      hero={step === "welcome"}
+    >
       {step === "welcome" && renderWelcome()}
       {step === "permissions" && renderPermissions()}
       {step === "speech" && renderSpeech()}

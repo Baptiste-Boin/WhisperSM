@@ -109,8 +109,8 @@ const TypeCell: React.FC<{ kind: RowKind }> = ({ kind }) => {
       : t("library.type.language.description");
   return (
     <div className="relative flex justify-center group/type">
-      <span className="w-7 h-7 rounded-md bg-surface-2 group-hover:bg-surface-3 flex items-center justify-center text-text-muted transition-colors">
-        <Icon className="w-4 h-4" strokeWidth={1.75} />
+      <span className="w-7 h-7 rounded-md flex items-center justify-center text-text-muted group-hover/type:bg-surface-2 transition-colors">
+        <Icon className="w-[18px] h-[18px]" strokeWidth={1.6} />
       </span>
       <div
         role="tooltip"
@@ -262,7 +262,7 @@ export const ModelRow: React.FC<ModelRowProps> = ({
           onClick();
         }
       }}
-      className={`${LIBRARY_GRID} group relative h-[60px] px-2 rounded-xl cursor-default outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/40 ${
+      className={`${LIBRARY_GRID} group relative h-[50px] px-2 rounded-xl cursor-default outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/40 ${
         isTryOpen ? "bg-surface-2" : ""
       }`}
     >
@@ -287,10 +287,10 @@ export const ModelRow: React.FC<ModelRowProps> = ({
         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-surface-3/70 transition-colors"
       >
         <Star
-          className={`w-[18px] h-[18px] ${
+          className={`w-[19px] h-[19px] ${
             isFavorite
-              ? "fill-warning text-warning"
-              : "text-text-muted/50 group-hover:text-text-muted"
+              ? "fill-current text-text"
+              : "text-text-muted/60 group-hover:text-text-muted"
           }`}
           strokeWidth={1.6}
         />
@@ -298,8 +298,8 @@ export const ModelRow: React.FC<ModelRowProps> = ({
 
       {/* Logo + name + badges */}
       <div className="flex items-center gap-3 min-w-0">
-        <VendorLogo vendor={row.vendor} size={30} />
-        <span className="text-[16px] text-text truncate" title={rowTitle}>
+        <VendorLogo vendor={row.vendor} size={28} />
+        <span className="text-[15.5px] text-text truncate" title={rowTitle}>
           {row.name}
         </span>
         {row.badge && (
@@ -313,14 +313,12 @@ export const ModelRow: React.FC<ModelRowProps> = ({
           </Badge>
         )}
         {row.isActive && (
-          <Badge variant="success" className="shrink-0">
-            {t("library.status.active")}
-          </Badge>
-        )}
-        {row.inUse && (
-          <Badge variant="primary" className="shrink-0">
-            {t("library.status.inUse")}
-          </Badge>
+          <span
+            className="w-2 h-2 rounded-full bg-success shrink-0"
+            title={t("library.status.active")}
+            aria-label={t("library.status.active")}
+            role="img"
+          />
         )}
         {onTry && (
           <button

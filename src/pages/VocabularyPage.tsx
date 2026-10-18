@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { ArrowRight, FileDown, X } from "lucide-react";
 import type { VocabularyReplacement } from "@/bindings";
+import { usePageHeader } from "@/stores/headerStore";
 import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
 import { Kbd } from "@/components/ui";
@@ -256,6 +257,25 @@ export const VocabularyPage: React.FC = () => {
   // Keep the caret in the text field when an inline action is clicked.
   const keepFocus = (event: React.MouseEvent) => event.preventDefault();
 
+  // Import sits in the top bar instead of the microphone, like the reference
+  // app.
+  usePageHeader(
+    {
+      trailing: (
+        <button
+          type="button"
+          onClick={handleImport}
+          title={`${t("vocabulary.import")} – ${t("vocabulary.importHint")}`}
+          aria-label={t("vocabulary.import")}
+          className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+        >
+          <FileDown className="w-[19px] h-[19px]" />
+        </button>
+      ),
+    },
+    [t, handleImport],
+  );
+
   const hasDraft = draft.trim() !== "";
   const replacementRows = replacements
     .map((entry, index) => ({ entry, index }))
@@ -265,21 +285,6 @@ export const VocabularyPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[22px] font-semibold tracking-tight leading-tight">
-          {t("vocabulary.title")}
-        </h1>
-        <button
-          type="button"
-          onClick={handleImport}
-          title={t("vocabulary.import")}
-          aria-label={t("vocabulary.import")}
-          className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
-        >
-          <FileDown className="w-[18px] h-[18px]" />
-        </button>
-      </div>
-
       <div className="flex flex-col gap-2">
         {pendingFrom === null ? (
           <div className="wsm-card h-14 flex items-center gap-2 ps-5 pe-2.5 transition-colors focus-within:border-accent/50">
@@ -357,9 +362,6 @@ export const VocabularyPage: React.FC = () => {
             </button>
           </div>
         )}
-        <p className="text-[13px] text-text-muted px-1">
-          {t("vocabulary.importHint")}
-        </p>
       </div>
 
       {settings &&

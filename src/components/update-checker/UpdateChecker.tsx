@@ -11,6 +11,8 @@ import { commands } from "../../bindings";
 
 interface UpdateCheckerProps {
   className?: string;
+  /** Only show the status line when an update is available or installing. */
+  hideWhenIdle?: boolean;
 }
 
 type UpdatePhase =
@@ -32,7 +34,10 @@ const closeUpdate = async (update: { close: () => Promise<void> }) => {
   }
 };
 
-const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
+const UpdateChecker: React.FC<UpdateCheckerProps> = ({
+  className = "",
+  hideWhenIdle = false,
+}) => {
   const { t } = useTranslation();
   // Update checking state
   const [updatePhase, setUpdatePhase] = useState<UpdatePhase>("idle");
@@ -251,6 +256,12 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       (updateAvailable || (!isChecking && !showUpToDate))) ||
     updatePhase === "restart-ready";
 
+  const showStatus =
+    !hideWhenIdle ||
+    updateAvailable ||
+    isUpdating ||
+    updatePhase === "restart-ready";
+
   return (
     <>
       {showPortableUpdateDialog && (
@@ -284,37 +295,39 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
           </div>
         </div>
       )}
-      <div className={`flex items-center gap-3 ${className}`}>
-        {isUpdateClickable ? (
-          <button
-            onClick={getUpdateStatusAction()}
-            disabled={isUpdateDisabled}
-            className={`transition-colors disabled:opacity-50 tabular-nums ${
-              updateAvailable
-                ? "text-logo-primary hover:text-logo-primary/80 font-medium"
-                : "text-text/60 hover:text-text/80"
-            }`}
-          >
-            {getUpdateStatusText()}
-          </button>
-        ) : (
-          <span className="text-text/60 tabular-nums">
-            {getUpdateStatusText()}
-          </span>
-        )}
+      {showStatus && (
+        <div className={`flex items-center gap-3 ${className}`}>
+          {isUpdateClickable ? (
+            <button
+              onClick={getUpdateStatusAction()}
+              disabled={isUpdateDisabled}
+              className={`transition-colors disabled:opacity-50 tabular-nums ${
+                updateAvailable
+                  ? "text-logo-primary hover:text-logo-primary/80 font-medium"
+                  : "text-text/60 hover:text-text/80"
+              }`}
+            >
+              {getUpdateStatusText()}
+            </button>
+          ) : (
+            <span className="text-text/60 tabular-nums">
+              {getUpdateStatusText()}
+            </span>
+          )}
 
-        {updatePhase === "downloading" && downloadProgress > 0 && (
-          <ProgressBar
-            progress={[
-              {
-                id: "update",
-                percentage: downloadProgress,
-              },
-            ]}
-            size="large"
-          />
-        )}
-      </div>
+          {updatePhase === "downloading" && downloadProgress > 0 && (
+            <ProgressBar
+              progress={[
+                {
+                  id: "update",
+                  percentage: downloadProgress,
+                },
+              ]}
+              size="large"
+            />
+          )}
+        </div>
+      )}
     </>
   );
 };

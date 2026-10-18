@@ -11,10 +11,10 @@ import {
 import {
   Button,
   Dropdown,
-  PageHeader,
   SettingContainer,
   Switch,
   ToggleSwitch,
+  TitleBar,
   Tooltip,
 } from "@/components/ui";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
@@ -34,6 +34,8 @@ import { LogDirectory } from "@/components/settings/debug";
 import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
 import { useModelStore } from "@/stores/modelStore";
+import { usePageHeader } from "@/stores/headerStore";
+import { navigateTo } from "@/lib/navigation";
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   title,
@@ -138,6 +140,18 @@ export const AdvancedSettingsPage: React.FC = () => {
   );
   const isLinux = type() === "linux";
 
+  usePageHeader(
+    {
+      bar: (
+        <TitleBar
+          title={t("advanced.title")}
+          onBack={() => navigateTo("configuration")}
+        />
+      ),
+    },
+    [t],
+  );
+
   const unloadTimeout = settings?.model_unload_timeout ?? "never";
   const pasteMethod = settings?.paste_method ?? "ctrl_v";
   const clipboardHandling = settings?.clipboard_handling ?? "dont_modify";
@@ -175,8 +189,6 @@ export const AdvancedSettingsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t("advanced.title")} />
-
       <Section title={t("advanced.voiceModel.title")}>
         <SettingContainer
           title={t("advanced.voiceModel.activeDuration.title")}

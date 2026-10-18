@@ -412,6 +412,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
+            commands::stop_recording,
             commands::is_portable,
             commands::get_app_dir_path,
             commands::get_app_settings,
@@ -474,6 +475,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::local_llm::test_local_llm,
             commands::modes::set_active_mode,
             commands::modes::cycle_active_mode,
+            commands::modes::update_mode_options,
+            commands::modes::get_recent_apps,
             helpers::clamshell::is_laptop,
         ])
         .events(collect_events![managers::history::HistoryUpdatePayload,])
@@ -610,11 +613,20 @@ pub fn run(cli_args: CliArgs) {
                     tauri::WebviewUrl::App("/".into()),
                 )
                 .title(window_title)
-                .inner_size(680.0, 570.0)
-                .min_inner_size(680.0, 570.0)
+                .inner_size(760.0, 540.0)
+                .min_inner_size(680.0, 480.0)
                 .resizable(true)
                 .maximizable(false)
                 .visible(false);
+
+                // Like the reference app: traffic lights over the sidebar, no
+                // title text.
+                #[cfg(target_os = "macos")]
+                {
+                    win_builder = win_builder
+                        .title_bar_style(tauri::TitleBarStyle::Overlay)
+                        .hidden_title(true);
+                }
 
                 if let Some(data_dir) = portable::data_dir() {
                     win_builder = win_builder.data_directory(data_dir.join("webview"));
@@ -644,8 +656,9 @@ pub fn run(cli_args: CliArgs) {
             let app_handle = app.handle().clone();
             app.manage(actions::ActiveActionState(std::sync::Mutex::new(None)));
             app.manage(actions::RecordingContextState(std::sync::Mutex::new(
-                None,
+                actions::DictationContext::default(),
             )));
+            app.manage(settings::RecordingLanguageState(std::sync::Mutex::new(None)));
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
             initialize_core_logic(&app_handle);

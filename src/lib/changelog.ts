@@ -9,6 +9,8 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { id: "modeEditor", date: "2026-10-18" },
+  { id: "allModels", date: "2026-10-18" },
   { id: "modelsLibrary", date: "2026-09-26" },
   { id: "cloudVoice", date: "2026-09-26" },
   { id: "modes", date: "2026-09-26" },

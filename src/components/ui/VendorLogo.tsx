@@ -36,6 +36,8 @@ interface LogoStyle {
   fg: string;
   /** Mark size relative to the tile (default 0.62). */
   scale?: number;
+  /** Repaint a coloured mark with `fg` (marks that match their tile). */
+  mono?: boolean;
 }
 
 /**
@@ -48,7 +50,13 @@ const LOGOS: Record<string, LogoStyle> = {
   google: { svg: gemini, bg: "#ffffff", fg: "#000000" },
   meta: { svg: meta, bg: "#0866ff", fg: "#ffffff" },
   mistral: { svg: mistral, bg: "#fff4e6", fg: "#000000", scale: 0.66 },
-  nvidia: { svg: nvidia, bg: "#76b900", fg: "#ffffff", scale: 0.66 },
+  nvidia: {
+    svg: nvidia,
+    bg: "#76b900",
+    fg: "#1f3d00",
+    scale: 0.7,
+    mono: true,
+  },
   deepgram: { svg: deepgram, bg: "#e3453b", fg: "#ffffff", scale: 0.58 },
   elevenlabs: { svg: elevenlabs, bg: "#ffffff", fg: "#000000" },
   cohere: { svg: cohere, bg: "#ffffff", fg: "#000000" },
@@ -58,6 +66,16 @@ const LOGOS: Record<string, LogoStyle> = {
   cerebras: { svg: cerebras, bg: "#ffffff", fg: "#000000" },
   openrouter: { svg: openrouter, bg: "#1f1f2e", fg: "#ffffff" },
   apple: { svg: apple, bg: "#000000", fg: "#ffffff" },
+  xai: {
+    bg: "#000000",
+    fg: "#ffffff",
+    glyph: (
+      <g fill="currentColor">
+        <path d="M5 5h3.2l10.8 14h-3.2z" />
+        <path d="M16.2 5H19l-5.3 6.9-1.4-1.8zM5 19h2.8l3.2-4.2-1.4-1.8z" />
+      </g>
+    ),
+  },
   moonshine: {
     bg: "#111111",
     fg: "#ffd166",
@@ -118,10 +136,11 @@ const LOGOS: Record<string, LogoStyle> = {
  * Normalise an official SVG for inline use: drop fixed sizes and inline
  * styles, and make marks without an explicit fill follow `currentColor`.
  */
-const prepareSvg = (raw: string): string => {
+const prepareSvg = (raw: string, mono = false): string => {
   let svg = raw
     .replace(/<title>.*?<\/title>/s, "")
     .replace(/\s(width|height|style)="[^"]*"/g, "");
+  if (mono) svg = svg.replace(/\sfill="[^"]*"/g, "");
   const openTag = svg.match(/<svg[^>]*>/)?.[0] ?? "";
   if (!/\sfill="/.test(openTag)) {
     svg = svg.replace("<svg", '<svg fill="currentColor"');
@@ -133,10 +152,10 @@ const prepareSvg = (raw: string): string => {
 };
 
 const PREPARED = new Map<string, string>();
-const preparedSvg = (key: string, raw: string) => {
+const preparedSvg = (key: string, raw: string, mono?: boolean) => {
   let value = PREPARED.get(key);
   if (!value) {
-    value = prepareSvg(raw);
+    value = prepareSvg(raw, mono);
     PREPARED.set(key, value);
   }
   return value;
@@ -176,7 +195,9 @@ export const VendorLogo: React.FC<VendorLogoProps> = ({
           className="block"
           style={{ width: markSize, height: markSize }}
           // Trusted, bundled brand assets (src/assets/logos).
-          dangerouslySetInnerHTML={{ __html: preparedSvg(key, style.svg) }}
+          dangerouslySetInnerHTML={{
+            __html: preparedSvg(key, style.svg, style.mono),
+          }}
         />
       ) : (
         <svg

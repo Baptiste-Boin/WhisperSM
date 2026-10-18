@@ -555,9 +555,12 @@ impl TranscriptionManager {
         // Get current settings for configuration
         let settings = get_settings(&self.app_handle);
 
+        // The active mode may pick its own language.
+        let selected_language = crate::settings::recording_language(&self.app_handle, &settings);
+
         // Validate selected language against the model's supported languages.
         // If the language isn't supported, fall back to "auto" to prevent errors.
-        let validated_language = if settings.selected_language == "auto" {
+        let validated_language = if selected_language == "auto" {
             "auto".to_string()
         } else {
             let is_supported = self
@@ -565,18 +568,16 @@ impl TranscriptionManager {
                 .get_model_info(&settings.selected_model)
                 .map(|info| {
                     info.supported_languages.is_empty()
-                        || info
-                            .supported_languages
-                            .contains(&settings.selected_language)
+                        || info.supported_languages.contains(&selected_language)
                 })
                 .unwrap_or(true);
 
             if is_supported {
-                settings.selected_language.clone()
+                selected_language.clone()
             } else {
                 warn!(
                     "Language '{}' not supported by current model, falling back to auto-detect",
-                    settings.selected_language
+                    selected_language
                 );
                 "auto".to_string()
             }

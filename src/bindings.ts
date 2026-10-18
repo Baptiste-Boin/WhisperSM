@@ -514,6 +514,13 @@ async showMainWindowCommand() : Promise<Result<null, string>> {
 async cancelOperation() : Promise<void> {
     await TAURI_INVOKE("cancel_operation");
 },
+/**
+ * Stop the current recording, like pressing its shortcut again (the Stop
+ * button of the recording window).
+ */
+async stopRecording() : Promise<void> {
+    await TAURI_INVOKE("stop_recording");
+},
 async isPortable() : Promise<boolean> {
     return await TAURI_INVOKE("is_portable");
 },
@@ -1000,6 +1007,26 @@ async cycleActiveMode() : Promise<Result<PostProcessAction, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async updateModeOptions(id: string, options: ModeOptions) : Promise<Result<PostProcessAction, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_mode_options", { id, options }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Applications seen in recent dictations, most recent first, to suggest in
+ * a mode's "Activate for apps" picker.
+ */
+async getRecentApps() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_recent_apps") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Checks if the Mac is a laptop by detecting battery presence
  * 
@@ -1160,6 +1187,12 @@ multilingual: boolean; is_recommended: boolean; is_downloaded: boolean; is_downl
  */
 export type LocalLlmStatus = { loaded_model_id: string | null; is_loading: boolean; is_generating: boolean; device: string }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
+/**
+ * Per-mode options edited in the mode editor (everything except the name,
+ * instructions, models and shortcuts, which `update_post_process_action`
+ * handles).
+ */
+export type ModeOptions = { preset: string | null; tone: number | null; language: string | null; activate_apps: string[]; context_application: boolean; context_clipboard: boolean }
 export type ModelInfo = { id: string; name: string; description: string; filename: string; url: string | null; sha256: string | null; size_mb: number; 
 /**
  * For local models: files are on disk. For cloud models: the
@@ -1220,7 +1253,37 @@ export type PostProcessAction = { id: string; name: string; prompt: string; llm_
  * Speech model used when this mode is active. `None` means the app-wide
  * selected model.
  */
-speech_model_id?: string | null }
+speech_model_id?: string | null; 
+/**
+ * Built-in preset the mode was made from: "super", "voice", "message",
+ * "mail", "note", "meeting" or "custom". `None` for older modes.
+ */
+preset?: string | null; 
+/**
+ * Formality of the Message, Mail and Note presets, from 0 (casual) to
+ * 4 (formal).
+ */
+tone?: number | null; 
+/**
+ * Transcription language for this mode. `None` uses the app-wide
+ * language.
+ */
+language?: string | null; 
+/**
+ * Applications that switch to this mode when a recording starts in them
+ * (names as reported by the OS, compared case-insensitively).
+ */
+activate_apps?: string[]; 
+/**
+ * Give the language model the name of the frontmost application and the
+ * current date.
+ */
+context_application?: boolean; 
+/**
+ * Give the language model the text on the clipboard when the recording
+ * started.
+ */
+context_clipboard?: boolean }
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
 /**
  * Offers chat/language models usable by modes.

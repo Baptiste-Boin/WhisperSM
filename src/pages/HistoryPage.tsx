@@ -26,6 +26,7 @@ import {
   type HistoryEntry,
   type PostProcessAction,
 } from "@/bindings";
+import { usePageHeader } from "@/stores/headerStore";
 import { useSettings } from "@/hooks/useSettings";
 import { useOsType } from "@/hooks/useOsType";
 import { getActionIcon } from "@/lib/constants/actionIcons";
@@ -606,6 +607,39 @@ export const HistoryPage: React.FC = () => {
     return t("historyPage.groups.daysAgo", { count: days });
   };
 
+  // Search lives in the window's top bar, like the reference app.
+  usePageHeader(
+    {
+      bar: (
+        <div className="flex-1 h-full flex items-center gap-3 ps-1">
+          <Search
+            aria-hidden="true"
+            className="w-[18px] h-[18px] text-text-muted shrink-0"
+            strokeWidth={1.75}
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("historyPage.search")}
+            aria-label={t("historyPage.search")}
+            className="flex-1 min-w-0 h-full bg-transparent border-none outline-none text-[15px] text-text placeholder:text-text-faint"
+          />
+          <button
+            type="button"
+            onClick={openRecordingsFolder}
+            title={t("historyPage.actions.openFolder")}
+            aria-label={t("historyPage.actions.openFolder")}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+          >
+            <FolderOpen className="w-[18px] h-[18px]" />
+          </button>
+        </div>
+      ),
+    },
+    [query, t],
+  );
+
   let content: React.ReactNode;
   if (entries.length === 0) {
     const message = loading
@@ -621,7 +655,7 @@ export const HistoryPage: React.FC = () => {
       <div className="flex flex-col gap-6">
         {groups.map((group) => (
           <section key={group.days} className="flex flex-col gap-3">
-            <h2 className="px-1 text-[15px] font-semibold text-text/80">
+            <h2 className="px-1 text-[13px] font-medium text-text-faint">
               {groupLabel(group.days)}
             </h2>
             {group.entries.map((entry) => (
@@ -645,31 +679,5 @@ export const HistoryPage: React.FC = () => {
     );
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="relative">
-        <Search
-          aria-hidden="true"
-          className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none"
-        />
-        <Input
-          type="text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t("historyPage.search")}
-          aria-label={t("historyPage.search")}
-          className="w-full h-10 ps-9 text-[15px] font-normal"
-        />
-      </div>
-
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={openRecordingsFolder}>
-          <FolderOpen className="w-3.5 h-3.5" />
-          {t("historyPage.actions.openFolder")}
-        </Button>
-      </div>
-
-      {content}
-    </div>
-  );
+  return <div className="flex flex-col gap-4">{content}</div>;
 };

@@ -792,6 +792,18 @@ impl HistoryManager {
         })
     }
 
+    /// Distinct applications dictated into, most recent first.
+    pub async fn recent_app_names(&self, limit: usize) -> Result<Vec<String>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT app_name FROM transcription_history WHERE app_name IS NOT NULL AND app_name != '' GROUP BY app_name ORDER BY MAX(timestamp) DESC LIMIT ?1",
+        )?;
+        let names = stmt
+            .query_map(params![limit as i64], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<String>>>()?;
+        Ok(names)
+    }
+
     pub fn get_latest_completed_entry(&self) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         Self::get_latest_completed_entry_with_conn(&conn)

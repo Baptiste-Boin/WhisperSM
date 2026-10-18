@@ -32,12 +32,13 @@ pub async fn apply_action_to_history_entry(
         .cloned()
         .ok_or_else(|| format!("Action '{}' not found", action_id))?;
 
-    let processed = run_post_process_action(&app, &settings, &entry.transcription_text, &action)
-        .await
-        .ok_or_else(|| {
-            "Post-processing failed. Check the action's model configuration and API key."
-                .to_string()
-        })?;
+    let processed =
+        run_post_process_action(&app, &settings, &entry.transcription_text, &action, None)
+            .await
+            .ok_or_else(|| {
+                "Post-processing failed. Check the action's model configuration and API key."
+                    .to_string()
+            })?;
 
     history_manager.update_meta_text(
         &entry.file_name,

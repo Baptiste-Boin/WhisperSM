@@ -110,7 +110,7 @@ pub struct LLMModel {
 /// Can be triggered by a dedicated global shortcut (stored in `bindings`
 /// under `ppa_<id>`), by pressing `trigger_key` while a recording is in
 /// progress, or by being the active mode (see `AppSettings::active_mode_id`).
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type, Default)]
 pub struct PostProcessAction {
     pub id: String,
     pub name: String,
@@ -125,6 +125,30 @@ pub struct PostProcessAction {
     /// selected model.
     #[serde(default)]
     pub speech_model_id: Option<String>,
+    /// Built-in preset the mode was made from: "super", "voice", "message",
+    /// "mail", "note", "meeting" or "custom". `None` for older modes.
+    #[serde(default)]
+    pub preset: Option<String>,
+    /// Formality of the Message, Mail and Note presets, from 0 (casual) to
+    /// 4 (formal).
+    #[serde(default)]
+    pub tone: Option<u8>,
+    /// Transcription language for this mode. `None` uses the app-wide
+    /// language.
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Applications that switch to this mode when a recording starts in them
+    /// (names as reported by the OS, compared case-insensitively).
+    #[serde(default)]
+    pub activate_apps: Vec<String>,
+    /// Give the language model the name of the frontmost application and the
+    /// current date.
+    #[serde(default)]
+    pub context_application: bool,
+    /// Give the language model the text on the clipboard when the recording
+    /// started.
+    #[serde(default)]
+    pub context_clipboard: bool,
 }
 
 impl PostProcessAction {
@@ -132,6 +156,30 @@ impl PostProcessAction {
     pub fn is_voice_only(&self) -> bool {
         self.prompt.trim().is_empty()
     }
+
+    /// Whether recordings started in `app_name` switch to this mode.
+    pub fn activates_for(&self, app_name: &str) -> bool {
+        let app_name = app_name.trim();
+        !app_name.is_empty()
+            && self
+                .activate_apps
+                .iter()
+                .any(|app| app.trim().eq_ignore_ascii_case(app_name))
+    }
+}
+
+/// Transcription language chosen by the mode of the in-flight recording
+/// (`None` when the mode follows the app-wide language).
+pub struct RecordingLanguageState(pub std::sync::Mutex<Option<String>>);
+
+/// Language the current recording is transcribed in: the mode's language
+/// when it sets one, otherwise the app-wide selection.
+pub fn recording_language(app: &AppHandle, settings: &AppSettings) -> String {
+    use tauri::Manager;
+    app.try_state::<RecordingLanguageState>()
+        .and_then(|state| state.0.lock().ok().and_then(|guard| guard.clone()))
+        .filter(|language| !language.trim().is_empty())
+        .unwrap_or_else(|| settings.selected_language.clone())
 }
 
 pub fn default_action_icon() -> String {
@@ -792,6 +840,16 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             "https://console.anthropic.com/settings/keys",
             None,
         ),
+        cloud_provider(
+            "xai",
+            "xAI",
+            "https://api.x.ai/v1",
+            true,
+            true,
+            false,
+            "https://console.x.ai",
+            None,
+        ),
     ];
 
     // Note: We always include Apple Intelligence on macOS ARM64 without checking availability
@@ -1029,6 +1087,8 @@ fn ensure_post_process_actions(settings: &mut AppSettings) -> bool {
                 icon: default_icon_for_prompt(&prompt.id),
                 trigger_key,
                 speech_model_id: None,
+                preset: Some("custom".to_string()),
+                ..Default::default()
             });
         }
     }
@@ -1057,6 +1117,8 @@ fn ensure_modes(settings: &mut AppSettings) -> bool {
                 icon: "mic".to_string(),
                 trigger_key: None,
                 speech_model_id: None,
+                preset: Some("voice".to_string()),
+                ..Default::default()
             },
         );
         changed = true;
@@ -1502,6 +1564,30 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mode_activates_for_listed_apps_only() {
+        let mode = PostProcessAction {
+            id: "act_test".to_string(),
+            name: "Slack".to_string(),
+            activate_apps: vec!["Slack".to_string(), " Mail ".to_string()],
+            ..Default::default()
+        };
+        assert!(mode.activates_for("slack"));
+        assert!(mode.activates_for("Mail"));
+        assert!(!mode.activates_for("Notes"));
+        assert!(!mode.activates_for(""));
+    }
+
+    #[test]
+    fn modes_without_new_fields_still_load() {
+        let json = r#"{"id":"act_1","name":"Old","prompt":"Fix ${output}"}"#;
+        let mode: PostProcessAction = serde_json::from_str(json).unwrap();
+        assert_eq!(mode.icon, "sparkles");
+        assert!(mode.preset.is_none());
+        assert!(mode.activate_apps.is_empty());
+        assert!(!mode.context_clipboard);
+    }
 
     #[test]
     fn default_settings_disable_auto_submit() {

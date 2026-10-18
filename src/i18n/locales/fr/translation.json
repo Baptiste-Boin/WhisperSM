@@ -114,18 +114,18 @@
       "selectModel": "Impossible d'activer le modèle. Veuillez réessayer."
     },
     "permissions": {
-      "title": "Autorisations requises",
-      "description": "WhisperSM a besoin de quelques autorisations pour fonctionner correctement.",
+      "title": "Configurons les autorisations",
+      "description": "Tout reste sur votre Mac, sauf si vous choisissez un modèle cloud.",
       "microphone": {
-        "title": "Accès au microphone",
-        "description": "Nécessaire pour entendre votre voix pour la transcription."
+        "title": "Autoriser l'accès au micro",
+        "description": "Nécessaire pour capter l'audio à transcrire. Utilisé uniquement pendant la dictée."
       },
       "accessibility": {
-        "title": "Accès à l'accessibilité",
-        "description": "Nécessaire pour taper le texte transcrit dans vos applications."
+        "title": "Autoriser l'accès Accessibilité",
+        "description": "Nécessaire pour coller le texte dans les apps et interagir avec le système. Utilisé uniquement si besoin."
       },
       "grant": "Accorder l'autorisation",
-      "granted": "Accordé",
+      "granted": "Autorisé",
       "waiting": "En attente...",
       "allGranted": "Tout est prêt !",
       "skip": "Passer pour l'instant",
@@ -148,7 +148,7 @@
     },
     "welcome": {
       "title": "Bienvenue dans WhisperSM",
-      "description": "Dictez dans n'importe quelle application avec un seul raccourci. La transcription et la réécriture IA s'exécutent sur votre ordinateur : rien de ce que vous dites ne le quitte.",
+      "description": "Nous allons vous guider pour la configuration et nous assurer que WhisperSM fonctionne comme vous le souhaitez.",
       "features": {
         "speech": {
           "title": "Dictée instantanée",
@@ -162,7 +162,8 @@
           "title": "100 % privé",
           "text": "Aucun compte, aucun cloud. Votre audio et votre texte restent sur cette machine."
         }
-      }
+      },
+      "estimate": "Durée estimée : moins de 2 minutes"
     },
     "speech": {
       "title": "Choisissez un modèle vocal",
@@ -777,7 +778,9 @@
     "processing": "Traitement…",
     "cancelConfirm": "Échap à nouveau pour annuler",
     "idle": "Prêt",
-    "mode": "Mode"
+    "mode": "Mode",
+    "stop": "Arrêter",
+    "cancel": "Annuler"
   },
   "home": {
     "hero": {
@@ -866,6 +869,14 @@
       "viewAll": "Voir toutes les nouveautés"
     },
     "changelog": {
+      "modeEditor": {
+        "title": "Nouvel éditeur de modes",
+        "description": "Préréglages (Super, Message, E-mail, Note, Réunion, Personnalisé) avec un curseur de ton, une langue par mode, du contexte et l'activation automatique par app."
+      },
+      "allModels": {
+        "title": "Tous les modèles",
+        "description": "Claude Sonnet 5, GPT-5.6 Luna, Gemini 3.7 Flash, Llama 3.1 8B et les anciens modèles, plus Whisper Large et Large v3 Turbo (chinois)."
+      },
       "modelsLibrary": {
         "title": "Bibliothèque de modèles",
         "description": "Tous les modèles vocaux et de langage au même endroit : fournisseurs cloud gratuits, modèles locaux, favoris et clés d'API."
@@ -949,6 +960,101 @@
       "appDefaultModel": "Modèle vocal par défaut",
       "noAiModel": "Aucun modèle d'IA choisi",
       "quickKey": "Appuyez sur {{key}} pendant l'enregistrement"
+    },
+    "picker": {
+      "favorites": "Favoris",
+      "popular": "Populaires",
+      "more": "Autres modèles",
+      "older": "Anciens modèles"
+    },
+    "presets": {
+      "recommended": "Recommandé",
+      "super": {
+        "name": "Super"
+      },
+      "voice": {
+        "name": "Voix en texte"
+      },
+      "message": {
+        "name": "Message"
+      },
+      "mail": {
+        "name": "E-mail"
+      },
+      "note": {
+        "name": "Note"
+      },
+      "meeting": {
+        "name": "Réunion"
+      },
+      "custom": {
+        "name": "Personnalisé"
+      }
+    },
+    "menu": {
+      "edit": "Modifier",
+      "activate": "Définir comme mode actif",
+      "duplicate": "Dupliquer",
+      "copyName": "{{name}} (copie)"
+    },
+    "editor": {
+      "newTitle": "Nouveau mode",
+      "rename": "Cliquer pour renommer",
+      "preset": {
+        "label": "Préréglage",
+        "placeholder": "Choisir un préréglage",
+        "info": "Le préréglage décide de ce que l'IA fait de votre dictée : l'adapter à l'app (Super), nettoyer un message, rédiger un e-mail, une note ou un compte rendu de réunion, ou suivre vos propres instructions (Personnalisé). Voix en texte se contente de transcrire."
+      },
+      "tone": {
+        "label": "Ton",
+        "casual": "Décontracté",
+        "formal": "Formel",
+        "info": "Le niveau de formalité du texte nettoyé."
+      },
+      "instructions": {
+        "title": "Instructions personnalisées",
+        "description": "Adaptez la transcription à votre style en langage naturel.",
+        "required": "Écrivez des instructions pour ce mode."
+      },
+      "context": {
+        "label": "Contexte",
+        "application": "Application",
+        "clipboard": "Texte copié",
+        "info": "Contexte supplémentaire envoyé au modèle de langage : l'app dans laquelle vous dictez avec la date et votre nom d'utilisateur, et le texte du presse-papiers au début de l'enregistrement."
+      },
+      "language": {
+        "label": "Langue",
+        "appDefault": "Langue de l'app",
+        "automatic": "Automatique"
+      },
+      "voiceModel": {
+        "label": "Modèle vocal",
+        "placeholder": "Choisir un modèle vocal",
+        "info": "Le modèle qui transforme votre voix en texte. Parcourez, téléchargez et supprimez les modèles dans la Bibliothèque de modèles."
+      },
+      "languageModel": {
+        "label": "Modèle de langage",
+        "placeholder": "Choisir un modèle",
+        "info": "Le modèle d'IA qui met en forme votre transcription. Les modèles cloud utilisent votre propre clé API."
+      },
+      "apps": {
+        "label": "Activer pour les apps",
+        "add": "Ajouter des apps et sites",
+        "placeholder": "Nom de l'app, ex. Slack",
+        "recent": "Utilisées récemment",
+        "hint": "Quand vous lancez un enregistrement dans l'une de ces apps, ce mode devient le mode actif.",
+        "remove": "Retirer {{app}}",
+        "info": "Passer automatiquement à ce mode quand vous dictez dans ces apps."
+      },
+      "shortcut": {
+        "label": "Raccourci clavier",
+        "description": "Lancer un enregistrement dans ce mode"
+      },
+      "advanced": "Réglages avancés",
+      "quickKeyInfo": "Pendant un enregistrement, appuyez sur ce chiffre pour traiter la dictée avec ce mode.",
+      "makeActive": "Activer",
+      "delete": "Supprimer ce mode",
+      "needsKey": "{{model}} a besoin d'une clé API. Ajoutez-la dans la Bibliothèque de modèles."
     }
   },
   "models": {
@@ -1033,7 +1139,8 @@
     "microphone": {
       "title": "Microphone",
       "default": "{{name}} (Par défaut)",
-      "systemDefault": "Micro du système"
+      "systemDefault": "Micro du système",
+      "useSystemDefault": "Utiliser le micro du système"
     },
     "output": {
       "title": "Périphérique de sortie",

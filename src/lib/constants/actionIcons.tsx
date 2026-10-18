@@ -31,6 +31,10 @@ import {
   BookOpen,
   Feather,
   Mic,
+  MessageCircle,
+  Users,
+  SquareDashed,
+  Star,
 } from "lucide-react";
 
 /**
@@ -70,7 +74,14 @@ export const ACTION_ICONS: Record<string, LucideIcon> = {
   thumbsup: ThumbsUp,
   book: BookOpen,
   feather: Feather,
+  message: MessageCircle,
+  users: Users,
+  "square-dashed": SquareDashed,
+  star: Star,
 };
+
+/** Icons drawn filled, like the SF Symbols of the reference app. */
+export const FILLED_ACTION_ICONS = new Set(["message", "star", "heart", "zap"]);
 
 export const ACTION_ICON_NAMES = Object.keys(ACTION_ICONS);
 

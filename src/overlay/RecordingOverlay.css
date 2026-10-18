@@ -5,8 +5,8 @@
   align-items: center;
   gap: 6px;
   padding: 0 12px;
-  background: rgba(20, 20, 28, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 17px;
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.35),
@@ -36,12 +36,9 @@
   opacity: 0;
 }
 
-.recording-overlay.state-recording {
-  border-color: rgba(139, 124, 255, 0.55);
-}
-
+.recording-overlay.state-recording,
 .recording-overlay.state-processing {
-  border-color: rgba(79, 157, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .overlay-left {
@@ -49,6 +46,10 @@
   align-items: center;
   flex-shrink: 0;
   position: relative;
+}
+
+.recording-overlay.style-mini.state-recording .overlay-left {
+  display: none;
 }
 
 .recording-overlay.state-recording .overlay-left::after {
@@ -95,7 +96,7 @@
 
 .bar {
   flex: 1;
-  background: linear-gradient(180deg, #a49bff 0%, #6d9bff 100%);
+  background: #ffffff;
   max-height: 22px;
   border-radius: 1.5px;
   min-height: 3px;
@@ -263,4 +264,145 @@
   overflow: hidden;
   text-overflow: ellipsis;
   animation: action-pop 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* Classic recording window (reference app layout)                     */
+/* ------------------------------------------------------------------ */
+
+.classic-window {
+  width: 440px;
+  height: 128px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-radius: 28px;
+  background: rgba(42, 42, 42, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.92);
+  font-family:
+    "Geist",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+  transition:
+    opacity 220ms ease-out,
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  user-select: none;
+}
+
+.classic-window.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.classic-top {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+}
+
+.classic-wave {
+  width: 100%;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.classic-wave-bar {
+  width: 2.5px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.92);
+  opacity: 0.45;
+  transition: height 70ms linear;
+}
+
+.classic-status {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  animation: transcribing-pulse 2s infinite ease-in-out;
+}
+
+.classic-bar {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px 0 14px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.classic-mode {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14.5px;
+}
+
+.classic-mode-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classic-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.classic-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: default;
+}
+
+.classic-label {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14.5px;
+}
+
+.classic-action:hover .classic-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.classic-keys {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.classic-key {
+  min-width: 18px;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 600;
 }

@@ -47,8 +47,57 @@ tauri_panel! {
     })
 }
 
+/// Compact pill: the "Mini" style, and the resting/mode states.
 const OVERLAY_WIDTH: f64 = 200.0;
 const OVERLAY_HEIGHT: f64 = 36.0;
+
+/// The "Classic" recording window of the reference app: waveform on top,
+/// mode and Stop / Cancel controls below.
+const CLASSIC_WIDTH: f64 = 440.0;
+const CLASSIC_HEIGHT: f64 = 128.0;
+
+/// Mode and shortcuts shown in the classic window for the current recording.
+#[derive(Clone, Default)]
+struct OverlayRecordingInfo {
+    mode_name: Option<String>,
+    mode_icon: Option<String>,
+    stop_binding: Option<String>,
+}
+
+static RECORDING_INFO: std::sync::Mutex<Option<OverlayRecordingInfo>> = std::sync::Mutex::new(None);
+
+/// Remember which mode (and which shortcut) the current recording uses, so
+/// the recording window can show them.
+pub fn set_overlay_recording_info(
+    mode: Option<&settings::PostProcessAction>,
+    stop_binding: Option<String>,
+) {
+    if let Ok(mut guard) = RECORDING_INFO.lock() {
+        *guard = Some(OverlayRecordingInfo {
+            mode_name: mode.map(|m| m.name.clone()),
+            mode_icon: mode.map(|m| m.icon.clone()),
+            stop_binding,
+        });
+    }
+}
+
+/// Shortcut binding that started the current recording.
+pub fn recording_binding() -> Option<String> {
+    RECORDING_INFO
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref().and_then(|info| info.stop_binding.clone()))
+}
+
+/// Logical size of the overlay window for a style and state.
+fn overlay_size(style: settings::OverlayStyle, state: &str) -> (f64, f64) {
+    let busy = matches!(state, "recording" | "transcribing" | "processing");
+    if style == settings::OverlayStyle::Classic && busy {
+        (CLASSIC_WIDTH, CLASSIC_HEIGHT)
+    } else {
+        (OVERLAY_WIDTH, OVERLAY_HEIGHT)
+    }
+}
 
 #[cfg(target_os = "macos")]
 const OVERLAY_TOP_OFFSET: f64 = 46.0;
@@ -309,7 +358,10 @@ fn is_point_within_monitor(
 /// We must use LogicalPosition (not PhysicalPosition) because Tauri/tao
 /// converts PhysicalPosition using the scale factor of the monitor the window
 /// is *currently* on, which is wrong when moving cross-monitor.
-fn calculate_overlay_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
+fn calculate_overlay_position(
+    app_handle: &AppHandle,
+    (width, height): (f64, f64),
+) -> Option<(f64, f64)> {
     let monitor = get_monitor_for_overlay(app_handle)?;
     let scale = monitor.scale_factor();
     let monitor_x = monitor.position().x as f64 / scale;
@@ -319,11 +371,11 @@ fn calculate_overlay_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
 
     let settings = settings::get_settings(app_handle);
 
-    let x = monitor_x + (monitor_width - OVERLAY_WIDTH) / 2.0;
+    let x = monitor_x + (monitor_width - width) / 2.0;
     let y = match settings.overlay_position {
         OverlayPosition::Top => monitor_y + OVERLAY_TOP_OFFSET,
         OverlayPosition::Bottom | OverlayPosition::None => {
-            monitor_y + monitor_height - OVERLAY_HEIGHT - OVERLAY_BOTTOM_OFFSET
+            monitor_y + monitor_height - height - OVERLAY_BOTTOM_OFFSET
         }
     };
 
@@ -337,7 +389,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
     // for Layer Shell as we use anchors. On other platforms, we require a monitor.
     #[cfg(not(target_os = "linux"))]
     {
-        let position = calculate_overlay_position(app_handle);
+        let position = calculate_overlay_position(app_handle, (OVERLAY_WIDTH, OVERLAY_HEIGHT));
         if position.is_none() {
             debug!("Failed to determine overlay position, not creating overlay window");
             return;
@@ -394,7 +446,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 /// Creates the recording overlay panel and keeps it hidden by default (macOS)
 #[cfg(target_os = "macos")]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
-    if let Some((x, y)) = calculate_overlay_position(app_handle) {
+    if let Some((x, y)) = calculate_overlay_position(app_handle, (OVERLAY_WIDTH, OVERLAY_HEIGHT)) {
         // PanelBuilder creates a Tauri window then converts it to NSPanel.
         // The window remains registered, so get_webview_window() still works.
         match PanelBuilder::<_, RecordingOverlayPanel>::new(app_handle, "recording_overlay")
@@ -435,8 +487,15 @@ struct OverlayShowPayload {
     state: String,
     /// "classic" or "mini" (see `OverlayStyle`).
     style: String,
-    /// Name of the mode to display when `state == "mode"`.
+    /// Name of the mode to display (the flashed mode, or the mode of the
+    /// current recording).
     mode_name: Option<String>,
+    /// Icon of the recording's mode.
+    mode_icon: Option<String>,
+    /// Shortcut that stops the recording (e.g. "option+space").
+    stop_shortcut: Option<String>,
+    /// Shortcut that cancels it.
+    cancel_shortcut: Option<String>,
 }
 
 fn show_overlay_state(app_handle: &AppHandle, state: &str) {
@@ -450,7 +509,10 @@ fn show_overlay_state_with(app_handle: &AppHandle, state: &str, mode_name: Optio
         return;
     }
 
-    update_overlay_position(app_handle);
+    update_overlay_geometry(
+        app_handle,
+        Some(overlay_size(settings.overlay_style, state)),
+    );
 
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         let _ = overlay_window.show();
@@ -463,12 +525,37 @@ fn show_overlay_state_with(app_handle: &AppHandle, state: &str, mode_name: Optio
             settings::OverlayStyle::Classic => "classic",
             settings::OverlayStyle::Mini => "mini",
         };
+        let info = RECORDING_INFO
+            .lock()
+            .ok()
+            .and_then(|guard| guard.clone())
+            .unwrap_or_default();
+        let binding = |id: &str| {
+            settings
+                .bindings
+                .get(id)
+                .map(|b| b.current_binding.clone())
+                .filter(|b| !b.trim().is_empty())
+        };
+        let stop_shortcut = info
+            .stop_binding
+            .as_deref()
+            .and_then(binding)
+            .or_else(|| binding("transcribe"));
         let _ = overlay_window.emit(
             "show-overlay",
             OverlayShowPayload {
                 state: state.to_string(),
                 style: style.to_string(),
-                mode_name: mode_name.map(|s| s.to_string()),
+                mode_name: mode_name
+                    .map(|s| s.to_string())
+                    .or(info.mode_name)
+                    .or_else(|| settings.active_mode().map(|m| m.name.clone())),
+                mode_icon: info
+                    .mode_icon
+                    .or_else(|| settings.active_mode().map(|m| m.icon.clone())),
+                stop_shortcut,
+                cancel_shortcut: binding("cancel"),
             },
         );
     }
@@ -539,13 +626,30 @@ pub fn apply_always_show(app_handle: &AppHandle) {
 
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
+    update_overlay_geometry(app_handle, None);
+}
+
+/// Resize the overlay (when `size` is given) and move it to its place on the
+/// current monitor.
+fn update_overlay_geometry(app_handle: &AppHandle, size: Option<(f64, f64)>) {
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         #[cfg(target_os = "linux")]
         {
             update_gtk_layer_shell_anchors(&overlay_window);
         }
 
-        if let Some((x, y)) = calculate_overlay_position(app_handle) {
+        let size = size.unwrap_or_else(|| {
+            let scale = overlay_window.scale_factor().unwrap_or(1.0);
+            overlay_window
+                .inner_size()
+                .map(|s| (s.width as f64 / scale, s.height as f64 / scale))
+                .unwrap_or((OVERLAY_WIDTH, OVERLAY_HEIGHT))
+        });
+        let _ = overlay_window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+            width: size.0,
+            height: size.1,
+        }));
+        if let Some((x, y)) = calculate_overlay_position(app_handle, size) {
             let _ = overlay_window
                 .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
         }

@@ -14,3 +14,4 @@ export { SegmentedControl } from "./SegmentedControl";
 export { Button } from "./Button";
 export { Input } from "./Input";
 export { default as Badge } from "./Badge";
+export { TitleBar } from "./TitleBar";

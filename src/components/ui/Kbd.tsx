@@ -22,7 +22,7 @@ export const Kbd: React.FC<KbdProps> = ({
   };
   return (
     <kbd
-      className={`inline-flex items-center justify-center font-semibold leading-none border border-border-strong border-b-2 bg-surface text-text tabular-nums ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center font-semibold leading-none bg-surface-3 text-text tabular-nums ${sizes[size]} ${className}`}
     >
       {children}
     </kbd>
@@ -48,6 +48,8 @@ const MAC_KEY_SYMBOLS: Record<string, string> = {
   down: "↓",
   left: "←",
   right: "→",
+  escape: "esc",
+  esc: "esc",
 };
 
 const isMacPlatform = () =>

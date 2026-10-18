@@ -1370,6 +1370,7 @@ pub fn add_post_process_action(
         },
         trigger_key,
         speech_model_id: speech_model_id.filter(|id| !id.trim().is_empty()),
+        ..Default::default()
     };
 
     settings.post_process_actions.push(action.clone());

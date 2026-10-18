@@ -17,6 +17,15 @@ pub fn cancel_operation(app: AppHandle) {
     cancel_current_operation(&app);
 }
 
+/// Stop the current recording, like pressing its shortcut again (the Stop
+/// button of the recording window).
+#[tauri::command]
+#[specta::specta]
+pub fn stop_recording(app: AppHandle) {
+    let binding = crate::overlay::recording_binding().unwrap_or_else(|| "transcribe".to_string());
+    crate::signal_handle::send_transcription_input(&app, &binding, "overlay");
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn is_portable() -> bool {

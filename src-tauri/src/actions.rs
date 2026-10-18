@@ -9,8 +9,8 @@ use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings::{
-    get_settings, AppSettings, PostProcessAction, ACTION_BINDING_PREFIX,
-    APPLE_INTELLIGENCE_PROVIDER_ID,
+    get_settings, recording_language, AppSettings, PostProcessAction, RecordingLanguageState,
+    ACTION_BINDING_PREFIX, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -37,9 +37,15 @@ struct RecordingErrorEvent {
 /// set by the coordinator right before the pipeline stops.
 pub struct ActiveActionState(pub Mutex<Option<String>>);
 
-/// Name of the application that was frontmost when the current recording
-/// started (the app the text will be pasted into).
-pub struct RecordingContextState(pub Mutex<Option<String>>);
+/// What was around the user when the current recording started: the app the
+/// text will be pasted into and, when the mode asks for it, the clipboard.
+#[derive(Default, Clone)]
+pub struct DictationContext {
+    pub app_name: Option<String>,
+    pub clipboard: Option<String>,
+}
+
+pub struct RecordingContextState(pub Mutex<DictationContext>);
 
 /// The mode that applies to a recording started from `binding_id`: the
 /// per-mode shortcut's mode, the default AI mode for the AI shortcut, or the
@@ -63,6 +69,12 @@ fn mode_for_binding<'a>(
 struct FinishGuard(AppHandle);
 impl Drop for FinishGuard {
     fn drop(&mut self) {
+        // The mode's language only applies to the recording that just ended.
+        if let Some(state) = self.0.try_state::<RecordingLanguageState>() {
+            if let Ok(mut guard) = state.0.lock() {
+                *guard = None;
+            }
+        }
         if let Some(c) = self.0.try_state::<TranscriptionCoordinator>() {
             c.notify_processing_finished();
         }
@@ -118,7 +130,9 @@ pub(crate) async fn run_post_process_action(
     settings: &AppSettings,
     text: &str,
     action: &PostProcessAction,
+    context: Option<&DictationContext>,
 ) -> Option<String> {
+    let prompt = with_mode_context(&action.prompt, action, context);
     let model = action
         .llm_model_id
         .as_deref()
@@ -131,7 +145,7 @@ pub(crate) async fn run_post_process_action(
                 app,
                 settings,
                 text,
-                &action.prompt,
+                &prompt,
                 Some(&model.model),
                 Some(&model.provider_id),
             )
@@ -142,9 +156,52 @@ pub(crate) async fn run_post_process_action(
                 "Action '{}' has no saved language model; using active provider configuration",
                 action.id
             );
-            process_action(app, settings, text, &action.prompt, None, None).await
+            process_action(app, settings, text, &prompt, None, None).await
         }
     }
+}
+
+/// Append the context the mode asked for (application, date, clipboard) to
+/// its instructions.
+fn with_mode_context(
+    prompt: &str,
+    action: &PostProcessAction,
+    context: Option<&DictationContext>,
+) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    if action.context_application {
+        if let Some(app_name) = context.and_then(|c| c.app_name.as_deref()) {
+            lines.push(format!("Application: {}", app_name));
+        }
+        lines.push(format!(
+            "Date and time: {}",
+            chrono::Local::now().format("%A %Y-%m-%d %H:%M")
+        ));
+        if let Some(user) = std::env::var("USER")
+            .ok()
+            .or_else(|| std::env::var("USERNAME").ok())
+            .filter(|user| !user.trim().is_empty())
+        {
+            lines.push(format!("User name: {}", user));
+        }
+    }
+    if action.context_clipboard {
+        if let Some(clipboard) = context
+            .and_then(|c| c.clipboard.as_deref())
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+        {
+            lines.push(format!("Copied text:\n\"\"\"\n{}\n\"\"\"", clipboard));
+        }
+    }
+    if lines.is_empty() {
+        return prompt.to_string();
+    }
+    format!(
+        "{}\n\nContext (use it to adapt the result, never repeat it):\n{}",
+        prompt.trim_end(),
+        lines.join("\n")
+    )
 }
 
 async fn process_action(
@@ -334,13 +391,10 @@ async fn process_action(
     }
 }
 
-async fn maybe_convert_chinese_variant(
-    settings: &AppSettings,
-    transcription: &str,
-) -> Option<String> {
+async fn maybe_convert_chinese_variant(language: &str, transcription: &str) -> Option<String> {
     // Check if language is set to Simplified or Traditional Chinese
-    let is_simplified = settings.selected_language == "zh-Hans";
-    let is_traditional = settings.selected_language == "zh-Hant";
+    let is_simplified = language == "zh-Hans";
+    let is_traditional = language == "zh-Hant";
 
     if !is_simplified && !is_traditional {
         debug!("selected_language is not Simplified or Traditional Chinese; skipping translation");
@@ -349,7 +403,7 @@ async fn maybe_convert_chinese_variant(
 
     debug!(
         "Starting Chinese translation using OpenCC for language: {}",
-        settings.selected_language
+        language
     );
 
     // Use OpenCC to convert based on selected language
@@ -394,14 +448,15 @@ pub(crate) async fn process_transcription_output(
     let mut post_processed_text: Option<String> = None;
     let mut post_process_prompt: Option<String> = None;
 
-    if let Some(converted_text) = maybe_convert_chinese_variant(&settings, transcription).await {
+    let language = recording_language(app, &settings);
+    if let Some(converted_text) = maybe_convert_chinese_variant(&language, transcription).await {
         final_text = converted_text;
     }
 
     if post_process {
         if let Some(action) = settings.default_post_process_action().cloned() {
             if let Some(processed_text) =
-                run_post_process_action(app, &settings, &final_text, &action).await
+                run_post_process_action(app, &settings, &final_text, &action, None).await
             {
                 post_processed_text = Some(processed_text.clone());
                 final_text = processed_text;
@@ -428,20 +483,55 @@ impl ShortcutAction for TranscribeAction {
 
         // Remember which app the text will be pasted into (for history stats).
         let frontmost = frontmost_app::frontmost_app_name();
+
+        // A mode set to activate for this app becomes the active mode.
+        let mut settings = get_settings(app);
+        if binding_id == "transcribe" || binding_id == "push_to_talk" {
+            let auto_mode = frontmost.as_deref().and_then(|app_name| {
+                settings
+                    .post_process_actions
+                    .iter()
+                    .find(|mode| mode.activates_for(app_name))
+                    .map(|mode| mode.id.clone())
+            });
+            if let Some(mode_id) = auto_mode {
+                if settings.active_mode_id.as_deref() != Some(mode_id.as_str()) {
+                    debug!("Auto-activating mode '{}' for {:?}", mode_id, frontmost);
+                    if crate::commands::modes::set_active_mode_internal(app, &mode_id).is_ok() {
+                        settings = get_settings(app);
+                    }
+                }
+            }
+        }
+        let mode = mode_for_binding(&settings, binding_id);
+
+        let clipboard = if mode.map(|m| m.context_clipboard).unwrap_or(false) {
+            use tauri_plugin_clipboard_manager::ClipboardExt;
+            app.clipboard().read_text().ok()
+        } else {
+            None
+        };
         if let Some(state) = app.try_state::<RecordingContextState>() {
             if let Ok(mut guard) = state.0.lock() {
-                *guard = frontmost;
+                *guard = DictationContext {
+                    app_name: frontmost,
+                    clipboard,
+                };
+            }
+        }
+        if let Some(state) = app.try_state::<RecordingLanguageState>() {
+            if let Ok(mut guard) = state.0.lock() {
+                *guard = mode.and_then(|m| m.language.clone());
             }
         }
 
         // Load the speech model in the background. The mode that applies to
         // this shortcut may override the app-wide selection.
-        let settings = get_settings(app);
-        let speech_override =
-            mode_for_binding(&settings, binding_id).and_then(|mode| mode.speech_model_id.clone());
+        let speech_override = mode.and_then(|mode| mode.speech_model_id.clone());
         let tm = app.state::<Arc<TranscriptionManager>>();
         tm.initiate_model_load_with(speech_override);
 
+        crate::overlay::set_overlay_recording_info(mode, Some(binding_id.to_string()));
         let binding_id = binding_id.to_string();
         change_tray_icon(app, TrayIconState::Recording);
         show_recording_overlay(app);
@@ -555,9 +645,17 @@ impl ShortcutAction for TranscribeAction {
         let binding_id = binding_id.to_string();
         let post_process = self.post_process;
 
-        let app_name = app
+        let dictation_context = app
             .try_state::<RecordingContextState>()
-            .and_then(|state| state.0.lock().ok().and_then(|mut guard| guard.take()));
+            .and_then(|state| {
+                state
+                    .0
+                    .lock()
+                    .ok()
+                    .map(|mut guard| std::mem::take(&mut *guard))
+            })
+            .unwrap_or_default();
+        let app_name = dictation_context.app_name.clone();
 
         let selected_action_id =
             app.try_state::<ActiveActionState>()
@@ -678,6 +776,7 @@ impl ShortcutAction for TranscribeAction {
                                     &settings,
                                     &base.final_text,
                                     &action,
+                                    Some(&dictation_context),
                                 )
                                 .await
                                 {
@@ -838,7 +937,7 @@ pub(crate) fn build_recording_meta(
         .and_then(|id| settings.llm_model(id))
         .map(|model| model.label.clone())
         .unwrap_or_default();
-    let language = settings.selected_language.clone();
+    let language = recording_language(app, settings);
     let now = chrono::Local::now();
 
     crate::storage::RecordingMeta {

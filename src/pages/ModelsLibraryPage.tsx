@@ -11,12 +11,14 @@ import {
   Loader2,
   Plus,
   Search,
-  SlidersHorizontal,
+  ListFilter,
 } from "lucide-react";
 import { commands } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { useModelStore } from "@/stores/modelStore";
 import { useLocalLlmStore } from "@/stores/localLlmStore";
+import { useFavoritesStore } from "@/stores/favoritesStore";
+import { usePageHeader } from "@/stores/headerStore";
 import {
   CLOUD_LLM_CATALOG,
   OLDER_SPEECH_MODEL_IDS,
@@ -38,7 +40,6 @@ import { TryPanel } from "@/components/library/TryPanel";
 import { ApiKeysDialog } from "@/components/library/ApiKeysDialog";
 import { CustomModelDialog } from "@/components/library/CustomModelDialog";
 
-const FAVORITES_KEY = "wsm.favoriteModels";
 const LOCAL_PROVIDER_ID = "local";
 /** Providers usable without an API key. */
 const KEYLESS_PROVIDERS = new Set(["custom", "apple_intelligence", "local"]);
@@ -47,26 +48,6 @@ type TypeFilter = "all" | "voice" | "language";
 type FlagFilter = "cloud" | "offline" | "favorites" | "ready";
 const TYPE_FILTERS: TypeFilter[] = ["all", "voice", "language"];
 const ALL_PROVIDERS = "all";
-
-const readFavorites = (): string[] => {
-  try {
-    const raw = window.localStorage.getItem(FAVORITES_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed)
-      ? parsed.filter((v): v is string => typeof v === "string")
-      : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeFavorites = (keys: string[]) => {
-  try {
-    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(keys));
-  } catch {
-    // Storage unavailable: favourites only last for this session.
-  }
-};
 
 const normalizeBadge = (badge: string | null | undefined) =>
   badge === "new" || badge === "en" ? badge : null;
@@ -109,7 +90,8 @@ export const ModelsLibraryPage: React.FC = () => {
   const [vendorFilter, setVendorFilter] = useState<string>(ALL_PROVIDERS);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showOlder, setShowOlder] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>(readFavorites);
+  const favorites = useFavoritesStore((s) => s.favorites);
+  const toggleFavorite = useFavoritesStore((s) => s.toggle);
   const [tryingKey, setTryingKey] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [keysDialog, setKeysDialog] = useState<{
@@ -119,16 +101,6 @@ export const ModelsLibraryPage: React.FC = () => {
   const [customOpen, setCustomOpen] = useState(false);
 
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
-
-  useEffect(() => {
-    writeFavorites(favorites);
-  }, [favorites]);
-
-  const toggleFavorite = useCallback((key: string) => {
-    setFavorites((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
-  }, []);
 
   const openKeys = useCallback((providerId?: string) => {
     setKeysDialog({ open: true, focus: providerId ?? null });
@@ -253,7 +225,7 @@ export const ModelsLibraryPage: React.FC = () => {
         isActive: false,
         inUse: Boolean(entry),
         llmModelId: entry?.id,
-        older: false,
+        older: Boolean(c.legacy),
         searchText: searchText(c.name, c.model, vendorName(c.vendor), label),
       });
     }
@@ -349,8 +321,8 @@ export const ModelsLibraryPage: React.FC = () => {
       return true;
     });
 
-    const rank = (row: LibraryRow) =>
-      favoriteSet.has(row.key) ? 0 : row.isActive || row.inUse ? 1 : 2;
+    // Favourites first, then by name (like the reference app).
+    const rank = (row: LibraryRow) => (favoriteSet.has(row.key) ? 0 : 1);
     const dir = sortDir === "asc" ? 1 : -1;
     visible.sort(
       (a, b) =>
@@ -486,7 +458,6 @@ export const ModelsLibraryPage: React.FC = () => {
           break;
         case "cloud-llm":
           if (row.status === "needsKey") openKeys(row.providerId);
-          else void toggleLanguageModel(row);
           break;
         case "custom-llm":
           if (row.status === "needsKey") openKeys(row.providerId);
@@ -519,9 +490,7 @@ export const ModelsLibraryPage: React.FC = () => {
         if (row.status === "downloaded") return t("library.actions.try");
         return undefined;
       case "cloud-llm":
-        return row.inUse
-          ? t("library.actions.disable")
-          : t("library.actions.enable");
+        return undefined;
       default:
         return undefined;
     }
@@ -580,19 +549,12 @@ export const ModelsLibraryPage: React.FC = () => {
     );
   };
 
-  const selectedVendorLabel =
-    vendorOptions.find((o) => o.value === vendorFilter)?.label ??
-    t("library.allProviders");
-  const isEmpty =
-    mainRows.length === 0 && (olderRows.length === 0 || !showOlder);
-
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Search + filters */}
-      <div className="flex flex-col gap-5">
-        <div className="flex items-center gap-3 pb-3 border-b border-border">
+  usePageHeader(
+    {
+      bar: (
+        <div className="flex-1 h-full flex items-center gap-3 ps-1">
           <Search
-            className="w-5 h-5 text-text-muted shrink-0"
+            className="w-[18px] h-[18px] text-text-muted shrink-0"
             strokeWidth={1.75}
           />
           <input
@@ -601,7 +563,7 @@ export const ModelsLibraryPage: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("library.search")}
             aria-label={t("library.search")}
-            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[17px] text-text placeholder:text-text-muted/70"
+            className="flex-1 min-w-0 h-full bg-transparent border-none outline-none text-[15px] text-text placeholder:text-text-faint"
           />
           <PopoverMenu
             align="end"
@@ -626,7 +588,7 @@ export const ModelsLibraryPage: React.FC = () => {
                     : "text-text-muted hover:text-text hover:bg-surface-2"
                 }`}
               >
-                <SlidersHorizontal className="w-[18px] h-[18px]" />
+                <ListFilter className="w-[18px] h-[18px]" />
                 {filtersActive && (
                   <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-accent" />
                 )}
@@ -634,7 +596,20 @@ export const ModelsLibraryPage: React.FC = () => {
             )}
           />
         </div>
+      ),
+    },
+    [query, typeFilter, flags, filtersActive, t],
+  );
 
+  const selectedVendorLabel =
+    vendorOptions.find((o) => o.value === vendorFilter)?.label ??
+    t("library.allProviders");
+  const isEmpty =
+    mainRows.length === 0 && (olderRows.length === 0 || !showOlder);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
           <PopoverMenu
             items={vendorOptions}
@@ -644,10 +619,8 @@ export const ModelsLibraryPage: React.FC = () => {
             trigger={(open) => (
               <span
                 role="button"
-                className={`h-10 min-w-[240px] px-3.5 inline-flex items-center justify-between gap-3 rounded-xl border bg-surface text-[16px] text-text transition-colors ${
-                  open
-                    ? "border-accent ring-2 ring-accent/20"
-                    : "border-border-strong hover:bg-surface-2"
+                className={`h-[30px] min-w-[180px] px-2.5 inline-flex items-center justify-between gap-3 rounded-[7px] bg-surface-2 border border-border text-[14px] text-text transition-colors ${
+                  open ? "ring-2 ring-accent/50" : "hover:bg-surface-3"
                 }`}
               >
                 <span className="truncate">{selectedVendorLabel}</span>
@@ -660,15 +633,15 @@ export const ModelsLibraryPage: React.FC = () => {
             onClick={() => openKeys()}
             title={t("library.apiKeys")}
             aria-label={t("library.apiKeys")}
-            className="h-10 w-14 rounded-xl bg-surface-2 border border-border text-text hover:bg-surface-3 flex items-center justify-center transition-colors"
+            className="h-[30px] w-11 rounded-[7px] bg-surface-2 border border-border text-text hover:bg-surface-3 flex items-center justify-center transition-colors"
           >
-            <KeyRound className="w-5 h-5" strokeWidth={1.9} />
+            <KeyRound className="w-[17px] h-[17px]" strokeWidth={2} />
           </button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="wsm-card p-2">
+      <div>
         <div
           className={`${LIBRARY_GRID} h-10 px-2 text-[13px] text-text-muted select-none`}
         >

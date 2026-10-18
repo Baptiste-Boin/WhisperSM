@@ -390,15 +390,7 @@ function App() {
         />
       )}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <HeaderBar
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={toggleSidebar}
-          onBack={
-            currentSection === "advanced"
-              ? () => setCurrentSection("configuration")
-              : undefined
-          }
-        />
+        <HeaderBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
         <div className="flex-1 overflow-y-auto">
           <div
             className={`mx-auto px-7 py-6 flex flex-col gap-6 ${
