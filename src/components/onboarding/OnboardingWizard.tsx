@@ -78,7 +78,9 @@ const Frame: React.FC<{
   footer?: React.ReactNode;
   /** The welcome screen: black backdrop with light streaks, no progress. */
   hero?: boolean;
-}> = ({ steps, current, children, footer, hero = false }) => (
+  /** Less space above the content, for steps taller than the window. */
+  compact?: boolean;
+}> = ({ steps, current, children, footer, hero = false, compact = false }) => (
   <div
     className={`h-screen w-screen flex flex-col select-none ${hero ? "wsm-onboarding-hero" : "bg-background"}`}
     data-tauri-drag-region
@@ -88,7 +90,7 @@ const Frame: React.FC<{
     </div>
     <div className="flex-1 overflow-y-auto">
       <div
-        className={`max-w-[560px] mx-auto px-10 wsm-fade-in ${hero ? "h-full flex flex-col justify-center" : "pt-14 pb-6"}`}
+        className={`max-w-[560px] mx-auto px-10 wsm-fade-in ${hero ? "h-full flex flex-col justify-center" : compact ? "pt-8 pb-6" : "pt-14 pb-6"}`}
         key={current}
       >
         {children}
@@ -685,8 +687,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
   const renderReady = () => (
     <div className="flex flex-col items-center text-center">
-      <div className="w-20 h-20 rounded-full bg-success/15 text-success flex items-center justify-center mb-6">
-        <Check className="w-10 h-10" />
+      <div className="w-14 h-14 rounded-full bg-success/15 text-success flex items-center justify-center mb-4">
+        <Check className="w-7 h-7" />
       </div>
       <h1 className="text-[28px] font-semibold tracking-tight">
         {t("onboarding.ready.title")}
@@ -697,14 +699,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           : t("onboarding.ready.descriptionToggle")}
       </p>
       {transcribeBinding && (
-        <div className="mt-6">
+        <div className="mt-5">
           <KeyCombo
             combination={formatKeyCombination(transcribeBinding, osType)}
             size="lg"
           />
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8 w-full text-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 w-full text-start">
         <div className="wsm-card px-4 py-3">
           <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">
             {t("onboarding.ready.tipModesTitle")}
@@ -755,6 +757,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     }
   })();
 
+  const showBack = stepIndex > 0 && step !== "ready";
+  const showSkipPermissions = step === "permissions" && !perms.allGranted;
+  const hasSecondaryActions = showBack || showSkipPermissions;
+
   const footer = (
     <>
       <button
@@ -765,26 +771,28 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       >
         {nextLabel}
       </button>
-      <div className="flex items-center justify-center gap-6 min-h-5">
-        {stepIndex > 0 && step !== "ready" && (
-          <button
-            type="button"
-            onClick={goBack}
-            className="text-[14px] text-text-muted hover:text-text transition-colors"
-          >
-            {t("onboarding.actions.back")}
-          </button>
-        )}
-        {step === "permissions" && !perms.allGranted && (
-          <button
-            type="button"
-            onClick={goNext}
-            className="text-[14px] text-text-muted hover:text-text transition-colors"
-          >
-            {t("onboarding.permissions.skip")}
-          </button>
-        )}
-      </div>
+      {hasSecondaryActions && (
+        <div className="flex items-center justify-center gap-6 min-h-5">
+          {showBack && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="text-[14px] text-text-muted hover:text-text transition-colors"
+            >
+              {t("onboarding.actions.back")}
+            </button>
+          )}
+          {showSkipPermissions && (
+            <button
+              type="button"
+              onClick={goNext}
+              className="text-[14px] text-text-muted hover:text-text transition-colors"
+            >
+              {t("onboarding.permissions.skip")}
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 
@@ -794,6 +802,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       current={step}
       footer={footer}
       hero={step === "welcome"}
+      compact={step === "ready"}
     >
       {step === "welcome" && renderWelcome()}
       {step === "permissions" && renderPermissions()}
